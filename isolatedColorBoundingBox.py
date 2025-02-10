@@ -1,28 +1,53 @@
 import cv2 as cv
 import numpy as np
 
-from PIL import Image
-
 cap = cv.VideoCapture(0)
-video_filter = cv.createBackgroundSubtractorMOG2()
 
-#HSV color definitions (pure)
-yellowLED_HSV = [([39,63], [19, 255], [216,255]),
-([26,31], [0, 104], [232,255])] #HSV yellow then green [H,S,V](min, max)
+#HSV color definitions
+
+hsvColors = {
+"yellowLo" : np.array([14, 0, 255]),
+"yellowHi" : np.array([30, 118, 255]),
+"greenLo" : np.array([32, 0, 200]),
+"greenHi" : np.array([60, 255, 255])
+}
+
+def createMasks(base,frameColorName):
+     newImage = cv.inRange(base, hsvColors[frameColorName + "Lo"], hsvColors[frameColorName + "Hi"])
+     return newImage
+
+def applyMask(baseFrame,maskFrame):
+    newImage = cv.bitwise_and(baseFrame, baseFrame, mask= maskFrame)
+    return newImage
+
+def applyContours(baseFrame,maskFrame):
+    newImage = cv.bitwise_and(baseFrame, baseFrame, mask= maskFrame)
+    return newImage
 
 while True:
         ret, frame = cap.read()
-        maskhsv = cv.cvtColor(frame,cv.COLOR_BGR2HSV)
-        mask = cv.inRange(maskhsv, )
+        frameHSV = cv.cvtColor(frame,cv.COLOR_RGB2HSV)
 
-        for (lower, upper) in 
+        #to create masks, type the color in lowercase, don't worry about low and high values, they will be added later
+        #yellowMask = createMasks(frameHSV,"yellow")
+        greenMask = createMasks(frameHSV,"green")
 
-        lowLim, upLim = correctHSV()
+        #apply masks
+        #compYellow = applyMask(frameHSV, yellowMask)
+        compGreen = applyMask(frameHSV, greenMask)
 
-        cv.imshow("TEST_VIDEO_FEED", frame)
-        cv.imshow("Mask",mask)
+        cntYellow, _ = cv.findContours(greenMask,)
 
-        key = cv.waitKey(30)
+        cv.imshow("Full Feed", frame)
+
+        #cv.imshow("Just Yellow",yellowMask)
+        #cv.imshow("Final Composite Yellow",compYellow)
+
+        cv.imshow("Just Green",greenMask)
+        cv.imshow("Final Composite Green",compGreen)
+
+
+        key = cv.waitKey(1)
         if key == 27:
             break
 
