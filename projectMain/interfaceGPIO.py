@@ -58,7 +58,7 @@ class gpio:
                 mainPi.set_mode(i[0],pigpio.INPUT)
             #sets PWM on or off
             if (i[2] == 1):
-                mainPi.hardware_PWM(i[1],)
+                mainPi.hardware_PWM(i[0],)
 
     def setPWM
 

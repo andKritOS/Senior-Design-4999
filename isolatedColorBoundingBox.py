@@ -8,8 +8,8 @@ cap = cv.VideoCapture(0)
 hsvColors = {
 "yellowLo" : np.array([14, 0, 255]),
 "yellowHi" : np.array([30, 118, 255]),
-"greenLo" : np.array([32, 0, 200]),
-"greenHi" : np.array([60, 255, 255])
+"greenLo" : np.array([37, 28, 173]),
+"greenHi" : np.array([75, 255, 255])
 }
 
 def createMasks(base,frameColorName):
