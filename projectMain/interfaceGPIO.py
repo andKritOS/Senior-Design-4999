@@ -1,17 +1,27 @@
 import gpiozero as gpio
-import time
+import board
+import adafruit_tcs34725
+from time import sleep
 
-class gpioInit:
+class gpioDevices:
     def __init__(self):
 
+
+        #--------------------[[USER EDITABLE VARIABLES]]-------------------------------
+
         #class variables
-        self.__hardwarePWMFrequency = 200
-        self.__softwarePWMFrequency = 200
-        self.wheelDutyCycle = 0.5
-        self
+        self.I2C_main = board.I2C() #establishes I2C
+        self._hardwarePWMFrequency = 200
+        self._softwarePWMFrequency = 200
+        self._servoMaxTurnAngle = 90 #maximum allowed angle (degrees) (positive and negative) for servo to turn.
+        self._servoCalibrationAngle = 0 #angle (degrees) offset for which servo will return upon leaving
+        self._wheelDutyCycle = 0.5
+        self._motorCalibrationMaxVelocity = 3 #speed at which the robot moves forward at full power (meters/sec).
+        self.wheelRadius = 3.175 #wheel radius in cm
 
+        self.ctrl_PD = {'P': 1,'D': 1} #PD calibration for smooth motor control
 
-        # ALL WILL BE SEET TO OUTPUTS
+        # ALL WILL BE SET TO OUTPUTS
         # ONCE CONNECTED, PINS NEED TO BE CHANGED IN SOFTWARE
         # FORMAT: (PIN NUM(#), IN(0)/OUT(1), PWM (1)/NOT PWM(0))
 
@@ -48,9 +58,15 @@ class gpioInit:
             "ultraEcho": (3,0,0) #ultrasonic feedback pin
         }
 
+        #----------------------------[[NON-EDITABLE VARIABLES, DO NOT EDIT PAST THIS LINE]]--------------------------------------
+
+        self.__efcServoMaxAngle = ((self._servoMaxTurnAngle + self._servoCalibrationAngle)/360 )
+        self.__efcServoMinAngle = -self.__servoMaxAngle #operational fraction for gimbal turning left and right
+        self.__
+
         # pin assignments
         #FRONT LEFT
-        motorFL = gpio.Motor(
+        self.motorFL = gpio.Motor(
             self.pinAsgn["frontLeftForward"[0]], #forward
             self.pinAsgn["frontLeftBackward"[0]], #backward
             self.pinAsgn["frontLeftPWM"[0]], #backward
@@ -59,7 +75,7 @@ class gpioInit:
             )
 
         #FRONT RIGHT
-        motorFR = gpio.Motor(
+        self.motorFR = gpio.Motor(
             self.pinAsgn["frontRightForward"[0]], #forward
             self.pinAsgn["frontRightBackward"[0]], #backward
             self.pinAsgn["frontRightPWM"[0]], #backward
@@ -68,7 +84,7 @@ class gpioInit:
             )
 
         #BACK LEFT
-        motorBL = gpio.Motor(
+        self.motorBL = gpio.Motor(
             self.pinAsgn["backLeftForward"[0]], #forward
             self.pinAsgn["backLeftBackward"[0]], #backward
             self.pinAsgn["backLeftPWM"[0]], #backward
@@ -77,7 +93,7 @@ class gpioInit:
             )
 
         #BACK RIGHT
-        motorBR = gpio.Motor(
+        self.motorBR = gpio.Motor(
             self.pinAsgn["backRightForward"[0]], #forward
             self.pinAsgn["backRightBackward"[0]], #backward
             self.pinAsgn["backRightPWM"[0]], #backward
@@ -86,9 +102,9 @@ class gpioInit:
             )
 
         #CAMERA SERVO
-        camServo = gpio.servo(
+        self.camServo = gpio.servo(
             self.pinAsgn["cameraGimbalServo"[0]],
-            0, #initial value on startup
+            self._servoCalibrationAngle, #initial value on startup
             0.01, #min pw
             1, #max pw
             0.020, #frame width
@@ -96,13 +112,13 @@ class gpioInit:
         )
 
         #FRONT RED LED
-        fntRed = gpio.LED(self.pinAsgn["frontRGB_Red"[0]])
+        self.fntRed = gpio.LED(self.pinAsgn["frontRGB_Red"[0]])
 
         #FRONT GREEN LED
-        fntRed = gpio.LED(self.pinAsgn["frontRGB_Green"[0]])
+        self.fntRed = gpio.LED(self.pinAsgn["frontRGB_Green"[0]])
 
         #Bumper Switch
-        bumperSW = gpio.Button(
+        self.bumperSW = gpio.Button(
             self.pinAsgn["frontBumper"[0]],
             False, #False = pulldown resistor
             True, #True = Active High
@@ -113,43 +129,93 @@ class gpioInit:
             )
         
         #Color sensors
+        
         #Left
-        clrSens_L = 
+        #clrSens_L = gpio.InputDevice()
+
         #Center
-        clrSens_Cnt
+        #clrSens_Cnt = adafruit_tcs34725.TCS34725()
+        
         #Right
-        clrSens_R
+        #clrSens_R = 
 
         #Ultrasonic Sensor
-        ultSon = gpio.DistanceSensor(
+        self.ultSon = gpio.DistanceSensor(
             self.pinAsgn["ultraTrig"[0]],
             self.pinAsgn["ultraEcho"[0],
-            9, #length of queue of read values
+            9, #length of queue of read valuespinAsgn
             4.0, #max readable distance (meters)
             0.4, #IMPORTANT! THRESHOLD DISTANCE! TRIGGER IN RANGE DISTANCE FOR SENSOR
             False, #FALSE = report values ONLY after the queue has filled up
             None #pin factory
             ])
 
-        
+    # ----------------------------------------------------------------------------------- 
 
-    
-class moveOperations:
-    def __init__(self):
-    def moveIncremental(self,direction,distance,velocity):
+    def halt(self):
+        #stops all motion
+        self.motorFL.stop()
+        self.motorFR.stop()
+        self.motorBL.stop()
+        self.motorBR.stop()
+
+    def movePD(self,ctrl_PD,):
+
+        
+    def moveIncremental(self,direction,distance,speed):
+        
+        if(direction == 'f'):
+            self.motorFL.forward(speed = speed)
+            self.motorFR.forward(speed = speed)
+            self.motorBL.forward(speed = speed)
+            self.motorBR.forward(speed = speed)
+        else:
+            self.motorFL.backward(speed = speed)
+            self.motorFR.backward(speed = speed)
+            self.motorBL.backward(speed = speed)
+            self.motorBR.backward(speed = speed)
+        
+        self.halt()
+
+        if velocity is None:
+
         #moves forward or backward incrementally
     def turnIncrement(self,direction,degrees,angVelocity):
+
         #turns left or right incrementally
     def moveContinuous(self,direction,velocity):
+        self.motorFR.forward() 
+        
         #moves forward or backward continuously
     def turnContinuous(self,direction,angVelocity):
         #moves forward or backward continuously
-    def halt(self):
-        #stops all motion
+
+    def resetGimbal(self):
+        self.camServo.detach()
+
     def emergencyStop(self):
-        #disconnects power from motors
+        #stops and then disconnects power from motors, program wont operate again until reset
+        self.halt()
+
+        self.motorFL.close()
+        self.motorFR.close()
+        self.motorBL.close()
+        self.motorBR.close()
+        self.camServo.value = None #will be able to freely move
+        
     def moonWalk(self):
-        #turns wheels inward and accomplishes nothing
+        #turns wheels inward and accomplishes nothing to test motors
+        self.motorFL.backward()
+        self.motorFR.backward()
+        self.motorBL.forward()
+        self.motorBR.forward()
+        for i in range(10):
+            self.camServo.value = -0.5
+            sleep(1)
+            self.camServo.value = 0.5
+            sleep(1)
+        self.halt()
+
 
 class lightModes
     def __init__(self):
@@ -159,6 +225,6 @@ class compoundOperations:
     def _
 
 
-mainPins = gpio()
+mainPins = gpioDevices()
 
 
