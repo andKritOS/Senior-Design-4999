@@ -1,7 +1,11 @@
 import cv2 as cv
-import p
 import numpy as np
 import string
+
+#camera feed settings
+cameraWidth = 640
+cameraHeight = 480
+cameraChannelCnt = 3
 
 cap = cv.VideoCapture(0)
 
@@ -16,6 +20,10 @@ hsvColors = {
 
 def startCameraCapture():
      ret, frame = cap.read(0)
+     camera_width = cap.get(cv.CAP_PROP_FRAME_WIDTH)
+     camera_height = cap.get(cv.CAP_PROP_FRAME_HEIGHT)
+     camera_channel_count = cap.get(cv.CAP_PROP_VIDEO_TOTAL_CHANNELS)
+
      return frame
 
 def createHSVMasks(baseFrame,frameColorName):
@@ -42,30 +50,40 @@ def drawBoxesForColor(baseFrame,maskFrame,boxText):
      
 while True:
         frameRAW = startCameraCapture() #frameRaw is BGR
-        hsvFrame = cv.cvtColor(frameRAW,cv.COLOR_BGR2HSV) #hsvFrame is HSV
-        grayScaleFrame = cv.cvtColor(frameRAW,cv.COLOR_BGR2GRAY) #grayScaleFrame is Gray
+        baseFrameHSV = cv.cvtColor(frameRAW,cv.COLOR_BGR2HSV) #HSV
+        frameRAWCircles = frameRAW #HSV
+        baseFrameGray = cv.cvtColor(frameRAW,cv.COLOR_BGR2GRAY) #grayScaleFrame is Gray
+        blurryMask = cv.medianBlur(frameRAW, 5) # HSV only takes 3 and 5 as kernel size when using uint8
+        thresh_value = 200
 
-        colorHSVMask = createHSVMasks(hsvFrame,"GREEN") #Green HSV mask
-        blurryFrame = cv.medianBlur(grayScaleFrame,5) # only takes 3 and 5 as kernel size when using uint8
-        circlesMask = cv.HoughCircles(blurryFrame,cv.HOUGH_GRADIENT,1,20,param1=50,param2=30,minRadius=0,maxRadius=0) #ciclesMask is gray
+        maskGreenHSV = createHSVMasks(frameRAW,"GREEN") #Green HSV mask
+        maskScreenBright = cv.threshold(blurryMask,thresh_value,255,cv.THRESH_BINARY)
 
-        if circlesMask is not None:
-            circlesRings = np.uint8(np.around(circlesMask)) #circles rings is gray
-            for i in circlesRings[0, :]:
-                cv.circle(frameRAW,(i[0],i[1]),i[2],(255,0,0),2) #draws a red circle around the circle
-                cv.circle(frameRAW,(i[0],i[1]),2,(0,0,255),3) #draws a blue dot in the center of the circle
+        maskCircles = cv.HoughCircles(blurryMask,cv.HOUGH_GRADIENT,1,20,param1=50,param2=30,minRadius=0,maxRadius=0) #GRAY ciclesMask is JUST WHITE DOTS OF CIRCLES
 
-            circlesRings = cv.cvtColor(circlesRings,cv.COLOR_RGB2HSV) #HSV
+        if maskCircles is not None:
+            maskCircles = np.uint8(np.around(maskCircles)) #converts from decimal to integer for all radii
+
+            for i in maskCircles[0, :]:
+                cv.circle(frameRAWCircles,(i[0],i[1]),i[2],(255,0,0),2) #draws a red circle around the circle
+                cv.circle(frameRAWCircles,(i[0],i[1]),2,(0,0,255),3) #draws a blue dot in the center of the circle
+
+        else:
+            maskCircles = np.zeros((cameraHeight,cameraWidth,cameraChannelCnt), dtype = np.uint8) 
+
+
+        maskCirclesHSV = cv.cvtColor(maskCirclesHSV,cv.COLOR_GRAY2BGR)
+        maskCirclesHSV = cv.cvtColor(maskCirclesHSV,cv.COLOR_BGR2HSV)
         
-        circlesMask = cv.cvtColor(circlesMask,cv.COLOR_GRAY2BGR) #BGR
-        colorHSVMask = cv.cvtColor(colorHSVMask,cv.COLOR_HSV2BGR) #BGRcirclesMask
-
-        detectedLEDMask = apply_AND_Mask(colorHSVMask,circlesMask) #apply bit mask down to each of the detected circles
+        
+        detectedLEDMask = apply_AND_Mask(maskGreenHSV,maskCirclesHSV) #apply bit mask down to each of the detected circles
         finalOutput = apply_AND_Mask(frameRAW,detectedLEDMask)
-        finalOutput = apply_OR_Mask(finalOutput,circlesRings)
+        #finalOutput = apply_OR_Mask(finalOutput,circlesRings)
 
-        cv.imshow("Camera Feed", frameRAW)
-        cv.imshow("Camera with Identified LEDs", finalOutput)
+        cv.imshow("Mask Green HSV", maskGreenHSV)
+        cv.imshow("Blurry Frame Gray", blurryMask)
+        cv.imshow("frame RAW Circles", frameRAWCircles)
+        cv.imshow("mask Circles Gray", maskCircles)
 
         key = cv.waitKey(1)
         if key == 27:

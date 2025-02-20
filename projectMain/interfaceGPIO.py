@@ -6,7 +6,6 @@ from time import sleep
 class gpioDevices:
     def __init__(self):
 
-
         #--------------------[[USER EDITABLE VARIABLES]]-------------------------------
 
         #class variables
@@ -177,10 +176,11 @@ class gpioDevices:
         
         self.halt()
 
-        if velocity is None:
+        if speed is None:
 
         #moves forward or backward incrementally
     def turnIncrement(self,direction,degrees,angVelocity):
+
 
         #turns left or right incrementally
     def moveContinuous(self,direction,velocity):
