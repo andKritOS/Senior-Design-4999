@@ -1,38 +1,84 @@
 import camera_comp
-import motor_comp
-import sensors_lights
+import interfaceGPIO
+import time
 
-class Transition:
-    def __init__(self,toState):
-        self.toState = toState
+class states:
 
-    def Execute(self):
-        # to add things here
-        print("Transitioning now")
+    def __init__(self):
+        #GLOBAL VARIABLES
+        self.isStopLineDetected = False
+        self.isObstaclePresent = False
+        self.isLineVisible = False
+        self.isCollisionBumperEngaged = False
+        self.isSharpTurn = False
+        self.isTurnComplete = False
+        self.isDelayOver = True
+        self.isInterTypeIdentified = False
+        self.pathForwardExists = False
+        self.leftStopLineExists = False
+        self.rightStopLineExists = False
+        self.isLightDirectionDetermined = False
+        self.lightDirection = "Left"
 
-class templateFSM:
+    #list of states tuple
+    states = {
+        "Reset", #Initial state, sets global variables, initializes camera and sensors
+        "Idle_Stop", #regular car stop, activates for obstacles or intermediate 
+        "FollowingLine",
+        "Stop", 
+        "IdentifyIntersection",
+        "YieldtoLeft",
+        "DetermineLight",
+        "ExecuteTurn",
+        "Emergency" #bumper activation, stops car, changes lights, disconnects motors
+    }
 
-    def __init__(self,char):
-        self.char = char
-        self.states = {} #the states available
-        self.transitions = {} #list of next states
-        self.currentSt = None
-        self.nextSt = None
+    chkEmergency = self.isCollisionBumperEngaged & True
 
-    def setCurrState(self,stateName):
-        #sets the current state, creates instance
-        self.currentSt = self.states[stateName]
+    transitions = {
+        "chkEmergency": (self.isCollisionBumperEngaged),
+        "chkObstacle": ()
+    }
 
-    def setNextState(self,transName):
-        #sets the next state to go to, creates instance
-        self.nextSt = self.transitions[transName]
 
-    def Execute(self):
-        if(self.nextSt):
-            self.nextSt.Execute()
-            self.SetState(self.nextSt.t)
-            self.trans = None
-        self.currentSt.Execute()
 
-#constructing main FSM
-class 
+    def stateReset(self):
+        #startCamera
+        #
+
+    def Idle_Stop(self):
+
+    def FollowingLine(self):
+
+    def IdentifyIntersection(self):
+
+    def YieldtoLeft(self): 
+
+    def DetermineLight(self): 
+    
+    def ExecuteTurn(self):  
+
+    def Emergency(self):  
+
+class fsmCtrl:
+    
+    def __init__(self):
+        currentState = "Reset"
+        initialState = "Reset"
+        transition = None
+
+    def updateVariables(self):
+
+    
+    def ctrlLoop(self):
+        while(1): #Primary loop
+            if ()
+
+    
+        
+ctrl = fsmCtrl
+ctrl.ctrlLoop()
+
+    
+    
+
