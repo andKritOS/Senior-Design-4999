@@ -6,8 +6,7 @@ import string
 cameraWidth = 640
 cameraHeight = 480
 cameraChannelCnt = 3
-
-cap = cv.VideoCapture(0)
+thresh_value = 200
 
 #HSV color definitions
 
@@ -17,14 +16,6 @@ hsvColors = {
 "greenLo" : np.array([38, 28, 173]),
 "greenHi" : np.array([79, 255, 255])
 }
-
-def startCameraCapture():
-     ret, frame = cap.read(0)
-     camera_width = cap.get(cv.CAP_PROP_FRAME_WIDTH)
-     camera_height = cap.get(cv.CAP_PROP_FRAME_HEIGHT)
-     camera_channel_count = cap.get(cv.CAP_PROP_VIDEO_TOTAL_CHANNELS)
-
-     return frame
 
 def createHSVMasks(baseFrame,frameColorName):
      loCase = frameColorName.lower()
@@ -47,19 +38,30 @@ def drawBoxesForColor(baseFrame,maskFrame,boxText):
         cv.putText(baseFrame, boxText, (x, y-10), cv.FONT_HERSHEY_PLAIN, 2, (255, 255, 255), 2)
     return cntFrame
 
-     
+cap = cv.VideoCapture(0)#frameRaw is BGR
+
+camera_width = cap.get(cv.CAP_PROP_FRAME_WIDTH)
+camera_height = cap.get(cv.CAP_PROP_FRAME_HEIGHT)
+camera_channel_count = cap.get(cv.CAP_PROP_VIDEO_TOTAL_CHANNELS)
+
 while True:
-        frameRAW = startCameraCapture() #frameRaw is BGR
+        ret, frameRAW = cap.read(0)
+        frameRAWCircles = frameRAW
+
+        maskGreenHSV = cv.cvtColor(frameRAW,cv.COLOR_BGR2HSV)
+        maskGreenHSV = createHSVMasks(frameRAW,"green") #Green HSV mask
+        maskYellowHSV = cv.cvtColor(frameRAW,cv.COLOR_BGR2HSV)
+        maskYellowHSV = createHSVMasks(frameRAW,"yellow") #Green HSV mask
+        
         baseFrameHSV = cv.cvtColor(frameRAW,cv.COLOR_BGR2HSV) #HSV
-        frameRAWCircles = frameRAW #HSV
-        baseFrameGray = cv.cvtColor(frameRAW,cv.COLOR_BGR2GRAY) #grayScaleFrame is Gray
-        blurryMask = cv.medianBlur(frameRAW, 5) # HSV only takes 3 and 5 as kernel size when using uint8
-        thresh_value = 200
+        baseFrameGray = cv.cvtColor(frameRAW,cv.COLOR_BGR2GRAY) #GRAY
 
-        maskGreenHSV = createHSVMasks(frameRAW,"GREEN") #Green HSV mask
-        maskScreenBright = cv.threshold(blurryMask,thresh_value,255,cv.THRESH_BINARY)
-
-        maskCircles = cv.HoughCircles(blurryMask,cv.HOUGH_GRADIENT,1,20,param1=50,param2=30,minRadius=0,maxRadius=0) #GRAY ciclesMask is JUST WHITE DOTS OF CIRCLES
+        #creates a blurry frame with which to apply to the circles
+        blurryFrame = cv.medianBlur(baseFrameGray, 5) # HSV only takes 3 and 5 as kernel size when using uint8
+        #filters all brightest pixels from the screen given a certain threshold
+        blurryFrame = cv.threshold(blurryFrame,thresh_value,255,cv.THRESH_BINARY)
+        #GRAY ciclesMask is JUST WHITE DOTS OF CIRCLES
+        maskCircles = cv.HoughCircles(blurryFrame,cv.HOUGH_GRADIENT,1,20,param1=50,param2=30,minRadius=0,maxRadius=100)
 
         if maskCircles is not None:
             maskCircles = np.uint8(np.around(maskCircles)) #converts from decimal to integer for all radii
@@ -71,10 +73,8 @@ while True:
         else:
             maskCircles = np.zeros((cameraHeight,cameraWidth,cameraChannelCnt), dtype = np.uint8) 
 
-
         maskCirclesHSV = cv.cvtColor(maskCirclesHSV,cv.COLOR_GRAY2BGR)
         maskCirclesHSV = cv.cvtColor(maskCirclesHSV,cv.COLOR_BGR2HSV)
-        
         
         detectedLEDMask = apply_AND_Mask(maskGreenHSV,maskCirclesHSV) #apply bit mask down to each of the detected circles
         finalOutput = apply_AND_Mask(frameRAW,detectedLEDMask)
