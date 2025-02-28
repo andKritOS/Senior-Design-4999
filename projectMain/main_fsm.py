@@ -7,7 +7,7 @@ class ctrlVars:
     def __init__(self):
 
         #GLOBAL VARIABLES
-        self.currentState = 
+        self.currentState = states.stat
         self.nextState = None
         self.interStDelay = 1 #time to delay by default between states
 
@@ -42,7 +42,9 @@ class ctrlVars:
         self.trans_yieldLefttoTurnRight = [(not self.isObstaclePresent) and (not self.foundPathForward),states.state_ExecuteTurn] #16
         self.trans_turnNotFinished = [(not self.isTurnComplete) or (not self.isDelayOver),states.state_ExecuteTurn] #17
 
-    #----------STATE FUNCTION DEFINITIONS---------
+class states:
+
+   #----------STATE FUNCTION DEFINITIONS---------
     
     self.stateNames = {
         "state_Reset": {
@@ -58,8 +60,6 @@ class ctrlVars:
         "state_Emergency": () #bumper activation, stops car, changes lights, disconnects motors
     }
 
-class states:
-
     #--------FLOW FUNCTION DEFINITIONS--------------
 
     def delay(self,customTime):
@@ -69,7 +69,6 @@ class states:
             time.sleep(customTime)
         else:
             time.sleep(ctrlVars.interStDelay)
-
                 
 
     def state_Reset(self):
@@ -122,7 +121,6 @@ class states:
         #reset camera gimbal
         # loop until line is on track again AND visible in camera
         #
-
         
     def state_Emergency(self):
         #change LED to red
@@ -141,15 +139,28 @@ class states:
         while(1): #Primary loop
             if (ctrlVars.nextState is not None):
                 match ctrlVars.nextState:
-                    case "Reset":
-                        state_Reset()
-                    case "Idle_Stop":
-                    case "FollowingLine":
-                    case "Stop":
+                    case "state_Reset":
+                        self.state_Reset()
+                    case "state_Idle_Stop":
+                        self.state_Idle_Stop()
+                    case "state_FollowingLine":
+                        self.state_FollowingLine()
+                    case "state_Stop":
+                        self.state_Idle_Stop()
+                    case "state_IdentifyIntersection":
+                        self.state_IdentifyIntersection()
+                    case "state_YieldtoLeft":
+                        self.state_YieldtoLeft()
+                    case "state_DetermineLight":
+                        self.state_DetermineLight()
+                    case "state_ExecuteTurn":
+                        self.state_ExecuteTurn()
+                    case "state_Emergency":
+                        self.state_Emergency()
+                    case _:
+                        raise Exception("INVALID STATE ID")
             else:
-                
-
-
+                pass
 
 ctrlVars = ctrlVars #initializes FSM and control
 states = states #initializes state structure

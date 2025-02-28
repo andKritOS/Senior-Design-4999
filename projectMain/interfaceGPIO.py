@@ -8,17 +8,21 @@ class gpioDevices:
 
         #--------------------[[USER EDITABLE VARIABLES]]-------------------------------
 
-        #class variables
+        #class  variables
         self.I2C_main = board.I2C() #establishes I2C
         self._hardwarePWMFrequency = 200
         self._softwarePWMFrequency = 200
         self._servoMaxTurnAngle = 90 #maximum allowed angle (degrees) (positive and negative) for servo to turn.
         self._servoCalibrationAngle = 0 #angle (degrees) offset for which servo will return upon leaving
-        self._wheelDutyCycle = 0.5
-        self._motorCalibrationMaxVelocity = 3 #speed at which the robot moves forward at full power (meters/sec).
+        self._motorMaxSpeed = 3 #speed at which the robot moves forward at full power (meters/sec).
+        self._maxRev = 90 #units of revolutions per minute
+        self._MotorIncIntervalSeconds = 0.05 #the amount of time (seconds) with which the incremental motion is to wait before checking total distance
         self.wheelRadius = 3.175 #wheel radius in cm
-
+        self.travelSpeed = (self._maxRev*(2 * 3.14 * self.wheelRadius)/100)/60 #units in meters per second
         self.ctrl_PD = {'P': 1,'D': 1} #PD calibration for smooth motor control
+        self.I2C_data = None #information recieved from the I2C 
+
+        i2c = board.I2C()
 
         # ALL WILL BE SET TO OUTPUTS
         # ONCE CONNECTED, PINS NEED TO BE CHANGED IN SOFTWARE
@@ -46,12 +50,13 @@ class gpioDevices:
             #---------------------BUTTONS--------------------
             "frontBumper": (25,1,0),
             #------------------COLOR_SENSOR------------------
-            "frontRGB_SDA": (18,1,0), #please review, this needs to be an I2C connection because it doesn't strictly contain data pins
-            "frontRGB_SCL": (23,0,0), 
-            "leftRGB_SDA": (27,1,0),
-            "leftRGB_SCL": (10,0,0),
-            "rightRGB_SDA": (22,1,0),
-            "rightRGB_SCL": (24,0,0),
+            #declares I2C communication
+            "Select_A0": (18,1,0), #please review, this needs to be an I2C connection because it doesn't strictly contain data pins
+            "Select_A1": (23,0,0), 
+            "Select_A2": (27,1,0),
+            "I2CReset": (10,0,0),
+            "I2C_SDA": (22,1,0),
+            "I2C_SCL": (24,0,0),
             #------------------ULTRASONIC--------------------
             "ultraTrig": (2,1,0), #ultrasonic trigger pin
             "ultraEcho": (3,0,0) #ultrasonic feedback pin
@@ -130,13 +135,13 @@ class gpioDevices:
         #Color sensors
         
         #Left
-        #clrSens_L = gpio.InputDevice()
+        clrSens_L = gpio.InputDevice()
 
         #Center
-        #clrSens_Cnt = adafruit_tcs34725.TCS34725()
+        clrSens_Cnt = adafruit_tcs34725.TCS34725()
         
         #Right
-        #clrSens_R = 
+        clrSens_R = gpio.InputDevice()
 
         #Ultrasonic Sensor
         self.ultSon = gpio.DistanceSensor(
@@ -148,8 +153,13 @@ class gpioDevices:
             False, #FALSE = report values ONLY after the queue has filled up
             None #pin factory
             ])
-
-    # ----------------------------------------------------------------------------------- 
+    # -------------------------------I2C SETUP FUNCTIONS------------------------------------- 
+    
+    # -------------------------------MOTOR COMPOUND FUNCTIONS------------------------------------- 
+    def percToSpd(self,speed):
+        #speed is taken as percentage and converted into 0 to 1 PWM value
+        speed = speed/100
+        return speed
 
     def halt(self):
         #stops all motion
@@ -157,38 +167,50 @@ class gpioDevices:
         self.motorFR.stop()
         self.motorBL.stop()
         self.motorBR.stop()
+        
+    def moveOrTurnIncremental(self,direction,distanceMeters,speedPrcnt):
+        
+        self.distanceMoved = 0
 
-    def movePD(self,ctrl_PD,):
+        if speedPrcnt is None:
+            #if no speed provided, default to full power
+            speedPrcnt = 100
 
-        
-    def moveIncremental(self,direction,distance,speed):
-        
-        if(direction == 'f'):
-            self.motorFL.forward(speed = speed)
-            self.motorFR.forward(speed = speed)
-            self.motorBL.forward(speed = speed)
-            self.motorBR.forward(speed = speed)
-        else:
-            self.motorFL.backward(speed = speed)
-            self.motorFR.backward(speed = speed)
-            self.motorBL.backward(speed = speed)
-            self.motorBR.backward(speed = speed)
-        
+        match direction:
+            case 'f':
+                self.motorFL.forward(speed = self.percToSpd(speedPrcnt))
+                self.motorFR.forward(speed = self.percToSpd(speedPrcnt))
+                self.motorBL.forward(speed = self.percToSpd(speedPrcnt))
+                self.motorBR.forward(speed = self.percToSpd(speedPrcnt))
+            case 'b':
+                self.motorFL.backward(speed = self.percToSpd(speedPrcnt))
+                self.motorFR.backward(speed = self.percToSpd(speedPrcnt))
+                self.motorBL.backward(speed = self.percToSpd(speedPrcnt))
+                self.motorBR.backward(speed = self.percToSpd(speedPrcnt))
+            case 'clk':
+                self.motorFL.forward(speed = self.percToSpd(speedPrcnt))
+                self.motorFR.backward(speed = self.percToSpd(speedPrcnt))
+                self.motorBL.forward(speed = self.percToSpd(speedPrcnt))
+                self.motorBR.backward(speed = self.percToSpd(speedPrcnt))
+            case 'cntr_clk':
+                self.motorFL.backward(speed = self.percToSpd(speedPrcnt))
+                self.motorFR.forward(speed = self.percToSpd(speedPrcnt))
+                self.motorBL.backward(speed = self.percToSpd(speedPrcnt))
+                self.motorBR.forward(speed = self.percToSpd(speedPrcnt))
+            case _:
+                print("ERROR INVALID DIRECTION ON INCREMENTAL MOVEMENT FUNCTION")
+                distanceMeters = 0
+
+        while(self.distanceMoved < distanceMeters):
+            #d = v * t
+            sleep(self._MotorIncIntervalSeconds) #delays time in seconds
+            self.distanceMoved += ((self.travelSpeed * speedPrcnt)) * (self._MotorIncIntervalSeconds)
+
         self.halt()
 
-        if speed is None:
-
-        #moves forward or backward incrementally
-    def turnIncrement(self,direction,degrees,angVelocity):
-
-
-        #turns left or right incrementally
-    def moveContinuous(self,direction,velocity):
+    #turns left or right incrementally
+    def followContinuous(self,ctrl_PD,):
         self.motorFR.forward() 
-        
-        #moves forward or backward continuously
-    def turnContinuous(self,direction,angVelocity):
-        #moves forward or backward continuously
 
     def resetGimbal(self):
         self.camServo.detach()
