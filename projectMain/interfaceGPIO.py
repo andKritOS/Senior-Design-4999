@@ -9,7 +9,7 @@ class gpioDevices:
         #--------------------[[USER EDITABLE VARIABLES]]-------------------------------
 
         #class  variables
-        self.I2C_main = board.I2C() #establishes I2C
+        self._I2C_main = board.I2C() #establishes I2C
         self._hardwarePWMFrequency = 200
         self._softwarePWMFrequency = 200
         self._servoMaxTurnAngle = 90 #maximum allowed angle (degrees) (positive and negative) for servo to turn.
@@ -21,8 +21,6 @@ class gpioDevices:
         self.travelSpeed = (self._maxRev*(2 * 3.14 * self.wheelRadius)/100)/60 #units in meters per second
         self.ctrl_PD = {'P': 1,'D': 1} #PD calibration for smooth motor control
         self.I2C_data = None #information recieved from the I2C 
-
-        i2c = board.I2C()
 
         # ALL WILL BE SET TO OUTPUTS
         # ONCE CONNECTED, PINS NEED TO BE CHANGED IN SOFTWARE
@@ -211,6 +209,8 @@ class gpioDevices:
     #turns left or right incrementally
     def followContinuous(self,ctrl_PD,):
         self.motorFR.forward() 
+        while ():
+
 
     def resetGimbal(self):
         self.camServo.detach()
