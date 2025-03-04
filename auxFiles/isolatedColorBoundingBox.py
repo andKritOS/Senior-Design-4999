@@ -36,7 +36,7 @@ while True:
         #compYellow = applyMask(frameHSV, yellowMask)
         compGreen = applyMask(frameHSV, greenMask)
 
-        cntYellow, _ = cv.findContours(greenMask,)
+        cntGreen, _ = cv.findContours(greenMask,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
 
         cv.imshow("Full Feed", frame)
 
@@ -44,6 +44,7 @@ while True:
         #cv.imshow("Final Composite Yellow",compYellow)
 
         cv.imshow("Just Green",greenMask)
+        cv.imshow("Count Green",cntGreen)
         cv.imshow("Final Composite Green",compGreen)
 
 

@@ -119,14 +119,15 @@ def drawBoxesForColor(baseFrame,maskFrame,boxText):
 
 #initialize camera settings
 cap = cv.VideoCapture(0)
-camera_width = cap.get(cv.CAP_PROP_FRAME_WIDTH)
-camera_height = cap.get(cv.CAP_PROP_FRAME_HEIGHT)
-camera_channel_count = cap.get(cv.CAP_PROP_VIDEO_TOTAL_CHANNELS)
+#camera_width = cap.get(cv.CAP_PROP_FRAME_WIDTH)
+#camera_height = cap.get(cv.CAP_PROP_FRAME_HEIGHT)
+#camera_channel_count = cap.get(cv.CAP_PROP_VIDEO_TOTAL_CHANNELS)
 
 while True:
-        #frameRAW = linePhoto2
-        ret,frameRAW = cap.read(0)
+        frameRAW = linePhoto1
+        #ret,frameRAW = cap.read(0)
 
+        #frameResized = cv.resize(frameRAW,(cameraWidth,cameraHeight))
         frameResized = cv.resize(frameRAW,(cameraWidth,cameraHeight))
 
         #frameGray = cv.cvtColor(frameResized,cv.COLOR_BGR2GRAY)
@@ -143,7 +144,8 @@ while True:
         else:
             frameFilterCorners = detectedEdges
         
-        frameFilterCorners = drawROI(frameRAW)
+        #frameFilterCorners = drawROI(frameRAW)
+        frameFilterCorners = drawROI(frameResized)
         #to identify stop lines, I first need to isolate all lines that are associated with the color blue
 
         cv.imshow("BaseFrame", frameResized)
