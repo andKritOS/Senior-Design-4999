@@ -45,21 +45,25 @@ camera_height = cap.get(cv.CAP_PROP_FRAME_HEIGHT)
 camera_channel_count = cap.get(cv.CAP_PROP_VIDEO_TOTAL_CHANNELS)
 
 while True:
-        ret, frameRAW = cap.read(0)
+        ret, frameRAW = cap.read()
+        
         frameRAWCircles = frameRAW
+        mask = np.zeros((camera_width, camera_height), dtype=np.uint8) #for reference in size for masks later on
 
         #baseFrameHSV = cv.cvtColor(frameRAW,cv.COLOR_BGR2HSV) #HSV
-        #baseFrameGray = cv.cvtColor(frameRAW,cv.COLOR_BGR2GRAY) #GRAY
+        baseFrameGray = cv.cvtColor(frameRAW,cv.COLOR_BGR2GRAY) #GRAY
 
         maskGreenHSV = cv.cvtColor(frameRAW,cv.COLOR_BGR2HSV)
         maskGreenHSV = createHSVMasks(maskGreenHSV,"green") #Green HSV mask
 
         #creates a blurry frame with which to apply to the circles
-        blurryFrame = cv.medianBlur(maskGreenHSV, 5) # HSV only takes 3 and 5 as kernel size when using uint8
-        #filters all brightest pixels from the screen given a certain threshold
-        #blurryFrame = cv.threshold(blurryFrame,thresh_value,255,cv.THRESH_BINARY)
-        #GRAY ciclesMask is JUST WHITE DOTS OF CIRCLES
-        maskCircles = cv.HoughCircles(blurryFrame,cv.HOUGH_GRADIENT,1,20,param1=50,param2=30,minRadius=0,maxRadius=0)
+        maskGreenHSV = cv.medianBlur(maskGreenHSV, 5) # HSV only takes 3 and 5 as kernel size when using uint8
+        maskBright = cv.medianBlur(baseFrameGray, 5) # HSV only takes 3 and 5 as kernel size when using uint8
+        ret, maskBright = cv.threshold(maskBright,thresh_value,255,0) #filters all brightest pixels from the screen given a certain threshold
+        #maskCircles = cv.HoughCircles(maskBright,cv.HOUGH_GRADIENT,1,20,param1=50,param2=30,minRadius=0,maxRadius=0) #GRAY ciclesMask is JUST WHITE DOTS OF CIRCLES
+        maskContours,_= cv.findContours(maskBright,cv.RETR_TREE,cv.CHAIN_APPROX_SIMPLE)
+        contour_mask = np.zeros_like(mask)
+        cv.drawContours(contour_mask, maskContours, -1, 255, cv.FILLED) #creates filled contours with the brightest pixels
 
         #if maskCircles is not None:
         #maskCircles = np.uint8(np.around(maskCircles)) #converts from decimal to integer for all radii
@@ -69,16 +73,18 @@ while True:
         #    cv.circle(frameRAWCircles,(i[0],i[1]),2,(0,0,255),3) #draws a blue dot in the center of the circle
 
         #else:
-        #    frameRAWCircles = np.zeros((cameraHeight,cameraWidth,cameraChannelCnt), dtype = np.uint8) 
-        
+        #    frameRAWCircles = np.zeros((cameraHeight,cameraWidth,cameraChannelCnt), dtype = np.uint8)
+
+        #combinedMask1 = apply_AND_Mask(maskGreenHSV,contour_mask) #apply bit mask down to each of the detected circles
+
         #detectedLEDMask = apply_AND_Mask(maskGreenHSV,maskCirclesHSV) #apply bit mask down to each of the detected circles
         #finalOutput = apply_AND_Mask(frameRAW,detectedLEDMask)
         #finalOutput = apply_OR_Mask(finalOutput,circlesRings)
 
         cv.imshow("Mask Green HSV", maskGreenHSV)
-        cv.imshow("Blurry Frame Gray", blurryFrame)
-        #cv.imshow("frame RAW Circles", frameRAWCircles)
-        #cv.imshow("mask Circles", maskCircles)
+        cv.imshow("Blurry Frame Gray", maskBright)
+        cv.imshow("contour mask", contour_mask)
+        #cv.imshow("mask Circles", combinedMask1)
 
         key = cv.waitKey(1)
         if key == 27:
