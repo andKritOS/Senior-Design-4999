@@ -8,7 +8,12 @@ currentState = "state_reset"
 nextState = None
 interStDelay = 2 #default time to delay by default between states
 
-#STATE CONDITIONAL BOOLEANS
+#GLOBAL CONDITIONAL BOOLEANS
+cameraLEDModeEnabled = False #enables directional device detecting for camera 
+cameraLineTrackingEnabled = False #enables line and forward path verification for camera
+cameraCornerTrackingEnabled = False #enables stop line detection for camera
+
+#LOCAL CONDITIONAL BOOLEANS
 isStopLineDetected = False
 isObstaclePresent = False
 isLineVisible = False
@@ -44,21 +49,68 @@ trans_turnFinished = [(isTurnComplete) and (isDelayOver),"state_FollowingLine"] 
 trans_sharpTurnEncountered = [(foundSharpTurn),"state_ExecuteTurn"]
 
 stateNames = {
-    "state_Reset": ((trans_leaveReset),()),
-    "state_Safety_Stop": ((trans_checkEmergency,trans_beginDriving),()), #regular car stop, activates for obstacles or intermediate 
-    "state_FollowingLine": ((trans_returnSafeStop,trans_stopLineDetected),()),
-    "state_StopLine": ((trans_intersectionFound),()), 
-    "state_IdentifyIntersection": ((trans_foundLeft90Turn,trans_foundDirectionalDevice,trans_foundYieldLeft,trans_foundStraightThrough),()),
-    "state_YieldtoLeft": ((trans_yieldLeftThenForeward,trans_yieldLefttoTurnRight),()),
-    "state_DetermineLight": ((trans_lightTypeDetermined),()),
-    "state_ExecuteTurn": ((trans_turnFinished),()),
-    "state_Emergency": ((None),()) #bumper activation, stops car, changes lights, disconnects motors
+    # FORMAT:
+        # Transition Conidtions [0] <- These are the conditions that are searched through to determine if the state should change
+        # Requisite Sensor Groups [1] <- These are sensors or parts of camera code that are searched through so the state only has to refresh important data
+        # Transition Variable Changes [2] <- These are variables that need to be reset AFTER a state transition happens
+
+    "state_Reset": (
+        (trans_leaveReset, trans_returnSafeStop),
+        (None),
+        ()),
+    "state_Safety_Stop": (
+        (trans_checkEmergency,trans_beginDriving, trans_checkEmergency),
+        ("cameraLines","bumper","ultrasonic"),
+        ()), #regular car stop, activates for obstacles or intermediate 
+    "state_FollowingLine": (
+        (trans_returnSafeStop,trans_stopLineDetected),
+        ("cameraLines","bumper","ultrasonic"),
+        ()),
+    "state_StopLine": (
+        (trans_intersectionFound,trans_returnSafeStop),
+        ("ultrasonic",),
+        ()), 
+    "state_IdentifyIntersection": (
+        (trans_foundLeft90Turn,trans_foundDirectionalDevice,trans_foundYieldLeft,trans_foundStraightThrough, trans_returnSafeStop),
+        ("cameraLines","camera"),
+        ()),
+    "state_YieldtoLeft": (
+        (trans_yieldLeftThenForeward,trans_yieldLefttoTurnRight,trans_returnSafeStop),
+        (),
+        ()),
+    "state_DetermineLight": ((trans_lightTypeDetermined,trans_returnSafeStop),
+        (),
+        ()),
+    "state_ExecuteTurn": (
+        (trans_turnFinished,trans_returnSafeStop),
+        (),
+        ()),
+    "state_Emergency": (
+        (None),
+        (None),
+        ()) #bumper activation, stops car, changes lights, disconnects motors
 }
 
 #--------FLOW FUNCTION DEFINITIONS--------------
 
-def refreshSensors(current):
+def fetchSensorData(current):
 
+    #
+
+    for i in stateNames[currentState[1]]:
+        match currentState[1]:
+            case "cameraLines":
+            
+            case "cameraTraffic"
+                
+            case "bumper":
+                state_Safety_Stop()
+            case "state_FollowingLine":
+                state_FollowingLine()
+            case None:
+                pass
+            case _:
+                raise Exception("INVALID SENSOR WAS ACCESSED")
 
 def checkForChangeStates(name):
 
@@ -116,7 +168,9 @@ def state_Safety_Stop():
     #delay
     delay()
     #turn motors off
-    gpio.
+    gpio.emergencyStop()
+    while(1):
+        pass
     #wait for transition conditions
 
 def state_FollowingLine():

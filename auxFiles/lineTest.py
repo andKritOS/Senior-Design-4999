@@ -80,6 +80,7 @@ def reportForDots():
         print(Fore.CYAN + "LEFT STOPLINE WAS DETECTED" + Style.RESET_ALL)
     if (dotsOnRight >= 4):
         print(Fore.CYAN + "RIGHT STOPLINE WAS DETECTED" + Style.RESET_ALL)
+    
 
 def checkWithinROI(cornerImage):
         
@@ -119,13 +120,13 @@ def drawBoxesForColor(baseFrame,maskFrame,boxText):
 
 #initialize camera settings
 cap = cv.VideoCapture(0)
-#camera_width = cap.get(cv.CAP_PROP_FRAME_WIDTH)
-#camera_height = cap.get(cv.CAP_PROP_FRAME_HEIGHT)
-#camera_channel_count = cap.get(cv.CAP_PROP_VIDEO_TOTAL_CHANNELS)
+camera_width = cap.get(cv.CAP_PROP_FRAME_WIDTH)
+camera_height = cap.get(cv.CAP_PROP_FRAME_HEIGHT)
+camera_channel_count = cap.get(cv.CAP_PROP_VIDEO_TOTAL_CHANNELS)
 
 while True:
-        frameRAW = linePhoto1
-        #ret,frameRAW = cap.read(0)
+        #frameRAW = linePhoto1
+        ret,frameRAW = cap.read(0)
 
         #frameResized = cv.resize(frameRAW,(cameraWidth,cameraHeight))
         frameResized = cv.resize(frameRAW,(cameraWidth,cameraHeight))
@@ -137,7 +138,7 @@ while True:
         detectedEdges = cv.Canny(blurFrame,50,180)
         detectedEdges = cv.GaussianBlur(detectedEdges,(5,5),3)
 
-        corners = cv.goodFeaturesToTrack(detectedEdges, maxCorners = 100, qualityLevel = 0.01, minDistance=2,useHarrisDetector=True,k=0.1)
+        corners = cv.goodFeaturesToTrack(detectedEdges, maxCorners = 100, qualityLevel = 0.02, minDistance=20.0,useHarrisDetector=True,k=0.1)
         if corners is not None:
             corners = np.int0(corners)
             frameFilterCorners = checkWithinROI(corners)

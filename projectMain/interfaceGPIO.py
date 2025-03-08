@@ -217,7 +217,7 @@ def followContinuous():
     motorFR.forward() 
 
 def resetGimbal():
-    camServo.detach()
+    camServo.
 
 def lookBothWays():
     camServo.value()
