@@ -1,4 +1,11 @@
+#---------GPIO INTERFACE CODE---------
+#-------------------------------------
+#WINTER 2025 SEMESTER 
+#ME 4999 CAPSTONE PROJECT (GROUP 20)
+#WRITTEN BY ANDREW KRITIKOS COPYRIGHT 2025
+
 import gpiozero as gpio
+import sensorData
 import board
 import adafruit_tcs34725
 from time import sleep
@@ -8,7 +15,7 @@ from time import sleep
 #class  variables
 _hardwarePWMFrequency = 200
 _softwarePWMFrequency = 200
-_servoMaxTurnAngle = 90 #maximum allowed angle (degrees) (positive and negative) for servo to turn.
+_servoMaxTurnAngle = 45 #maximum allowed angle (degrees) (positive and negative) for servo to turn.
 _servoCalibrationAngle = 0 #angle (degrees) offset for which servo will return upon leaving
 _motorMaxSpeed = 3 #speed at which the robot moves forward at full power (meters/sec).
 _maxRev = 90 #units of revolutions per minute
@@ -19,12 +26,6 @@ ctrl_PD = {'P': 1,'D': 1} #PD calibration for smooth motor control
 
 
 #------------[[NON-EDITABLE VARIABLES, DO NOT EDIT PAST THIS LINE]]-------------
-
-sensorData = {
-    "ultSonic":[0,0,0], #ultrasonic latest readings [Left,Center,Right]
-    "colorSens":[[0,0,0], [0,0,0], [0,0,0]], # [L[RGB], C[RGB], R[RGB]]
-    "bumper": 0 #if this ever becomes 1, something went wrong and the robot will stop
-}
 
 #--------------------[[USER EDITABLE VARIABLES]]--------------------------------
 
@@ -53,7 +54,9 @@ pinAsgn = {
     "frontRGB_Green": (17,1,0), #
     #"rearRedLED": (X,X), #unused, will be directly plugged into the 3.3 volt pinb
     #---------------------BUTTONS--------------------
-    "frontBumper": (25,1,0),
+    "leftBumper": (25,1,0),
+    "centerBumper": (24,1,0),
+    "rightBumper": (10,1,0),
     #------------------COLOR_SENSOR------------------
     #declares I2C communication
     "Select_A0": (18,1,0), #please review, this needs to be an I2C connection because it doesn't strictly contain data pins
@@ -123,8 +126,28 @@ fntRed = gpio.LED(pinAsgn["frontRGB_Red"[0]])
 fntGreen = gpio.LED(pinAsgn["frontRGB_Green"[0]])
 
 #Bumper Switch
-bumperSW = gpio.Button(
-    pinAsgn["frontBumper"[0]],
+bumperSWL = gpio.Button(
+    pinAsgn["leftBumper"[0]],
+    False, #False = pulldown resistor
+    True, #True = Active High
+    None, #no bounce time because the bumper should NEVER be touched
+    1, #time to wait until executing "when held"
+    False, #No hold repeat
+    None #Pin factory, used for SPI
+)
+
+bumperSWC = gpio.Button(
+    pinAsgn["centerBumper"[0]],
+    False, #False = pulldown resistor
+    True, #True = Active High
+    None, #no bounce time because the bumper should NEVER be touched
+    1, #time to wait until executing "when held"
+    False, #No hold repeat
+    None #Pin factory, used for SPI
+)
+
+bumperSWR = gpio.Button(
+    pinAsgn["rightBumper"[0]],
     False, #False = pulldown resistor
     True, #True = Active High
     None, #no bounce time because the bumper should NEVER be touched
@@ -154,11 +177,20 @@ ultSon = gpio.DistanceSensor(
     False, #FALSE = report values ONLY after the queue has filled up
     None #pin factory
 )
+# -------------------------------BASIC SENSOR POLL FUNCTIONS-----------------------------------
 
+def pollBumpers():
+    sensorData["bumperSWL"[0]] = bumperSWL.value
+    sensorData["bumperSWC"[0]] = bumperSWC.value
+    sensorData["bumperSWR"[0]] = bumperSWR.value
+    print("Polling Bumpers \n")
 
+def pollUltrasonic(position):
+    sensorData[position]
+    print("Polling Ultrasonic Sensor \n")
 # -------------------------------I2C SETUP FUNCTIONS------------------------------------- 
 
-# -------------------------------MOTOR COMPOUND FUNCTIONS------------------------------------- 
+# -------------------------------COMPOUND FUNCTIONS---------------------------------
 def percToSpd(speed):
     #speed is taken as percentage and converted into 0 to 1 PWM value
     speed = speed/100
@@ -170,6 +202,7 @@ def halt():
     motorFR.stop()
     motorBL.stop()
     motorBR.stop()
+    print("Halting Motors \n")
     
 def moveOrTurnIncremental(direction,distanceMeters,speedPrcnt):
     
@@ -214,25 +247,44 @@ def moveOrTurnIncremental(direction,distanceMeters,speedPrcnt):
 #turns left or right incrementally
 def followContinuous():
     
-    motorFR.forward() 
+    motorFL.forward()
+    motorFR.forward()
+    motorBL.forward()
+    motorBR.forward()
 
 def resetGimbal():
-    camServo.
+    camServo.value = _servoCalibrationAngle
+    print("Camera gimbal has been reset.\n")
 
 def lookBothWays():
-    camServo.value()
+    resetGimbal()
+    sleep(0.001)
+    camServo.value(-_servoMaxTurnAngle)
+    sleep(0.001)    
+    pollUltrasonic(0) #polls when angle is turned left
+    sleep(0.001)
+    camServo.value(_servoCalibrationAngle)
+    sleep(0.001)
+    pollUltrasonic(1) #polls when angle is centered
+    sleep(0.001)
+    camServo.value(_servoMaxTurnAngle)
+    sleep(0.001)
+    pollUltrasonic(1) #polls when angle is centered
+    print("Finished looking both ways. \n")
 
 def emergencyStop():
     #stops and then disconnects power from motors, program wont operate again until reset
     halt()
-
     motorFL.close()
     motorFR.close()
     motorBL.close()
     motorBR.close()
     camServo.value = None #will be able to freely move
+    print("EMERGENCY STOP HAS BEEN DEPLOYED!\n")
+    
     
 def moonWalk():
+    print("WALKIN' ON THE MOON, BABY!\n")
     #turns wheels inward and accomplishes nothing to test motors
     motorFL.backward()
     motorFR.backward()
@@ -244,7 +296,3 @@ def moonWalk():
         camServo.value = 0.5
         sleep(1)
     halt()
-
-
-
-

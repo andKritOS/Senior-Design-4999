@@ -1,15 +1,21 @@
-import camera_comp as camera
-import multiThreadFunc as threads
+#------PROGRAM STATE MACHINE CODE-------
+#---------------------------------------
+#WINTER 2025 SEMESTER 
+#ME 4999 CAPSTONE PROJECT (GROUP 20)
+#WRITTEN BY ANDREW KRITIKOS COPYRIGHT 2025
+
+import multiThreadFunc as threading
+import sensorData
 import interfaceGPIO as gpio
 import time
 
 #GLOBAL VARIABLES
 currentState = "state_reset"
 nextState = None
-interStDelay = 2 #default time to delay by default between states
+interStDelay = 1 #default time to delay by default between states
 
 #GLOBAL CONDITIONAL BOOLEANS
-cameraLEDModeEnabled = False #enables directional device detecting for camera 
+cameraDirectDevEnabled = False #enables directional device detecting for camera 
 cameraLineTrackingEnabled = False #enables line and forward path verification for camera
 cameraCornerTrackingEnabled = False #enables stop line detection for camera
 
@@ -27,7 +33,7 @@ foundPathForward = False
 foundLeftStopLine = False
 foundRightStopLine = False
 isLightDirectionDetermined = False
-lightDirection = "Left"
+lightDirection = None #String direction for which way to turn
 
 #COMPOUND TRANSITION COMBINATIONS
 trans_leaveReset = [True, "state_Reset"] #CONDITIONLESS, MEANT TO GO IMMEDIATELY
@@ -56,57 +62,71 @@ stateNames = {
 
     "state_Reset": (
         (trans_leaveReset, trans_returnSafeStop),
-        (None),
-        ()),
+        ("cameraLines","ultrasonic","colorRGB"),
+        (None)),
     "state_Safety_Stop": (
         (trans_checkEmergency,trans_beginDriving, trans_checkEmergency),
         ("cameraLines","bumper","ultrasonic"),
         ()), #regular car stop, activates for obstacles or intermediate 
     "state_FollowingLine": (
         (trans_returnSafeStop,trans_stopLineDetected),
-        ("cameraLines","bumper","ultrasonic"),
+        ("cameraLines","cameraCorners","bumper","ultrasonic","colorRGB"),
         ()),
     "state_StopLine": (
         (trans_intersectionFound,trans_returnSafeStop),
-        ("ultrasonic",),
+        ("cameraLines","cameraCorners","bumper","ultrasonic"),
         ()), 
     "state_IdentifyIntersection": (
         (trans_foundLeft90Turn,trans_foundDirectionalDevice,trans_foundYieldLeft,trans_foundStraightThrough, trans_returnSafeStop),
-        ("cameraLines","camera"),
+        ("cameraLines","cameraCorners","cameraColors","ultrasonic"),
         ()),
     "state_YieldtoLeft": (
         (trans_yieldLeftThenForeward,trans_yieldLefttoTurnRight,trans_returnSafeStop),
-        (),
+        ("cameraLines","cameraCorners","ultrasonic"),
         ()),
     "state_DetermineLight": ((trans_lightTypeDetermined,trans_returnSafeStop),
-        (),
+        ("cameraLines","cameraCorners","cameraColors","ultrasonic"),
         ()),
     "state_ExecuteTurn": (
         (trans_turnFinished,trans_returnSafeStop),
-        (),
+        ("cameraLines","cameraCorners","cameraColors","ultrasonic"),
         ()),
     "state_Emergency": (
         (None),
         (None),
-        ()) #bumper activation, stops car, changes lights, disconnects motors
+        ())
 }
 
-#--------FLOW FUNCTION DEFINITIONS--------------
+#--------------------------SECONDARY CONTROL-FLOW FUNCTIONS------------------------
 
-def fetchSensorData(current):
-
-    #
+def fetchSensorData():
 
     for i in stateNames[currentState[1]]:
         match currentState[1]:
             case "cameraLines":
-            
-            case "cameraTraffic"
-                
+                if not cameraLineTrackingEnabled:
+                    cameraLineTrackingEnabled = True
+                sensorData.interpretCameraLines()
+            case "cameraDirectDev":
+                if not cameraDirectDevEnabled:
+                    cameraDirectDevEnabled = True
+                sensorData.interpretCameraColors()
+            case "cameraCorners":
+                if not cameraCornerTrackingEnabled:
+                    cameraCornerTrackingEnabled = True
+                sensorData.interpretCameraCorners()
             case "bumper":
-                state_Safety_Stop()
-            case "state_FollowingLine":
-                state_FollowingLine()
+                gpio.pollBumpers()
+                sensorData.interperetBumpers()
+            case "ultrasonic":
+                if (currentState == ""):
+                    gpio.lookBothWays()
+                else:
+                    gpio.pollUltrasonic()
+                sensorData.intepretSonicSensor()
+            case "colorRGB":
+                gpio.checkColor
+                sensorData.interpretColorSensor()
             case None:
                 pass
             case _:
@@ -155,7 +175,8 @@ def initalize():
     gpio.fntRed.off()
     gpio.fntGreen.on()
     gpio.resetGimbal()
-#----------STATE FUNCTION DEFINITIONS---------
+
+#----------------------------------STATE FUNCTIONS-----------------------------------------
 
 def state_Reset():
     delay() #wait 1 second
@@ -229,6 +250,8 @@ def state_Emergency():
     print("EMERGENCY STOP BUMPER WAS ACTIVATED, CONTROL TERMINATED!")
     while(1): #forces FSM to stop in infinite loop
         pass
+
+#-----------------------PRIMARY CONTROL-FLOW FUNCTIONS------------------------------------------------------------
 
 def ctrlLoop():
     #THIS CASE STATEMENT NEEDS TO EXIST INSTEAD OF JUST CHAINING BETWEEN FUNCTIONS.
