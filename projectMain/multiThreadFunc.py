@@ -10,6 +10,8 @@ import time
 
 def __makeThreadCamera():
 
+
+
 def __makeThreadVideoProcessing():
 
 def __makeThreadVideo

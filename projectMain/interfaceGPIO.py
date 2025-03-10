@@ -15,6 +15,7 @@ from time import sleep
 #class  variables
 _hardwarePWMFrequency = 200
 _softwarePWMFrequency = 200
+_ultrasonicThreshDist = 0.3 #float (meters) of the distance when the vehicle should stop behind an obstacle
 _servoMaxTurnAngle = 45 #maximum allowed angle (degrees) (positive and negative) for servo to turn.
 _servoCalibrationAngle = 0 #angle (degrees) offset for which servo will return upon leaving
 _motorMaxSpeed = 3 #speed at which the robot moves forward at full power (meters/sec).
@@ -173,7 +174,7 @@ ultSon = gpio.DistanceSensor(
     pinAsgn["ultraEcho"[0]],
     9, #length of queue of read valuespinAsgn
     4.0, #max readable distance (meters)
-    0.4, #IMPORTANT! THRESHOLD DISTANCE! TRIGGER IN RANGE DISTANCE FOR SENSOR
+    _ultrasonicThreshDist, #IMPORTANT! THRESHOLD DISTANCE! TRIGGER IN RANGE DISTANCE FOR SENSOR
     False, #FALSE = report values ONLY after the queue has filled up
     None #pin factory
 )

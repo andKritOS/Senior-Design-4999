@@ -67,37 +67,54 @@ stateNames = {
     "state_Safety_Stop": (
         (trans_checkEmergency,trans_beginDriving, trans_checkEmergency),
         ("cameraLines","bumper","ultrasonic"),
-        ()), #regular car stop, activates for obstacles or intermediate 
+        (None)), #regular car stop, activates for obstacles or intermediate 
     "state_FollowingLine": (
         (trans_returnSafeStop,trans_stopLineDetected),
         ("cameraLines","cameraCorners","bumper","ultrasonic","colorRGB"),
-        ()),
+        (None)),
     "state_StopLine": (
         (trans_intersectionFound,trans_returnSafeStop),
         ("cameraLines","cameraCorners","bumper","ultrasonic"),
-        ()), 
+        (None)), 
     "state_IdentifyIntersection": (
         (trans_foundLeft90Turn,trans_foundDirectionalDevice,trans_foundYieldLeft,trans_foundStraightThrough, trans_returnSafeStop),
         ("cameraLines","cameraCorners","cameraColors","ultrasonic"),
-        ()),
+        (None)),
     "state_YieldtoLeft": (
         (trans_yieldLeftThenForeward,trans_yieldLefttoTurnRight,trans_returnSafeStop),
         ("cameraLines","cameraCorners","ultrasonic"),
-        ()),
-    "state_DetermineLight": ((trans_lightTypeDetermined,trans_returnSafeStop),
+        (None)),
+    "state_DetermineLight": (
+        (trans_lightTypeDetermined,trans_returnSafeStop),
         ("cameraLines","cameraCorners","cameraColors","ultrasonic"),
-        ()),
+        (None)),
     "state_ExecuteTurn": (
         (trans_turnFinished,trans_returnSafeStop),
         ("cameraLines","cameraCorners","cameraColors","ultrasonic"),
-        ()),
+        (None)),
     "state_Emergency": (
         (None),
         (None),
-        ())
+        (None))
 }
 
 #--------------------------SECONDARY CONTROL-FLOW FUNCTIONS------------------------
+
+def resetStateVars():
+    #reset all variables
+    isStopLineDetected = False
+    isObstaclePresent = False
+    isLineVisible = False
+    isCollisionBumperEngaged = False
+    foundSharpTurn = False
+    isTurnComplete = False
+    isDelayOver = True
+    isInterTypeIdentified = False
+    isTrafficLightDetected = False
+    foundPathForward = False
+    foundLeftStopLine = False
+    foundRightStopLine = False
+    isLightDirectionDetermined = False
 
 def fetchSensorData():
 
@@ -106,15 +123,15 @@ def fetchSensorData():
             case "cameraLines":
                 if not cameraLineTrackingEnabled:
                     cameraLineTrackingEnabled = True
-                sensorData.interpretCameraLines()
+                    sensorData.interpretCameraLines()
             case "cameraDirectDev":
                 if not cameraDirectDevEnabled:
                     cameraDirectDevEnabled = True
-                sensorData.interpretCameraColors()
+                    sensorData.interpretCameraColors()
             case "cameraCorners":
                 if not cameraCornerTrackingEnabled:
                     cameraCornerTrackingEnabled = True
-                sensorData.interpretCameraCorners()
+                    sensorData.interpretCameraCorners()
             case "bumper":
                 gpio.pollBumpers()
                 sensorData.interperetBumpers()
@@ -131,36 +148,17 @@ def fetchSensorData():
                 pass
             case _:
                 raise Exception("INVALID SENSOR WAS ACCESSED")
-
-def checkForChangeStates(name):
+        
+def checkForChangeStates(loopingState):
 
     for i in stateNames[currentState[0]]:
         if (i == True):
             nextState = i[1]
 
     if (nextState is not None):
+        resetStateVars() #resets the required values for the state that was last exited
         currentState = nextState
         nextState = None #resets back to unchanged
-
-def resetAllVars():
-    #reset all variables
-    currentState = "state_reset"
-    lightDirection = "Left"
-    nextState = None
-    interStDelay = 1
-    isStopLineDetected = False
-    isObstaclePresent = False
-    isLineVisible = False
-    isCollisionBumperEngaged = False
-    foundSharpTurn = False
-    isTurnComplete = False
-    isDelayOver = True
-    isInterTypeIdentified = False
-    isTrafficLightDetected = False
-    foundPathForward = False
-    foundLeftStopLine = False
-    foundRightStopLine = False
-    isLightDirectionDetermined = False
 
 def delay(customTime):
     isDelayOver = False
@@ -179,25 +177,27 @@ def initalize():
 #----------------------------------STATE FUNCTIONS-----------------------------------------
 
 def state_Reset():
-    delay() #wait 1 second
+    #delay() #wait 1 second
     initalize() #sets up sensors, lights, etc.
-    resetAllVars() #reset all functions
-    checkForChangeStates()
-
+    resetStateVars() #reset all functions
+    while():
+        fetchSensorData()
+        checkForChangeStates()
 
 def state_Safety_Stop():
-    #delay
-    delay()
+    #delay()
     #turn motors off
     gpio.emergencyStop()
-    while(1):
-        pass
+    while():
+        fetchSensorData()
+        checkForChangeStates()
     #wait for transition conditions
 
 def state_FollowingLine():
     #center gimbal
     gpio.resetGimbal()
     while(not trans_stopLineDetected):
+        threading.
         #START MULTITHREAD
         #while Sensor checks do not indicate stopLine and until intersection is found -> stop
         #run line following routine 
@@ -208,7 +208,7 @@ def state_FollowingLine():
 
 def state_IdentifyIntersection():
     #delay
-    delay(4)
+    #delay(4)
     while (not trans_goToIdentifyFeatures)
     #loop until one is found below
         #wait for traffic lights nearby -> determine traffic lights (turn left or right)
@@ -217,13 +217,12 @@ def state_IdentifyIntersection():
         #wait for path ahead -> following Line
 
 def state_StopLine():
-    delay(2)
-    while (not )
+    #delay(2)
+    
     #stop state
 
 def state_YieldtoLeft(): 
-    #delay
-    delay()
+    #delay()
     #check if car is present on left
         #loop wait until car has passed
     #loop check left and right until both ways are clear
@@ -258,8 +257,8 @@ def ctrlLoop():
     #WE CAN'T CHAIN BECAUSE PYTHON HAS A RECURSION DEPTH OF 1000, AND WE WILL EVENTUALLY RUN OUT OF MEMORY
     #RECURSION HAPPENS WHEN YOU RUN A FUNCTION FROM INSIDE A FUNCTION.
 
+    resetAllVars()
     while(1): #Primary loop
-        
         match currentState:
             case "state_Reset":
                 state_Reset()
@@ -289,7 +288,3 @@ def ctrlLoop():
 #initialize sensors 
 initalize() #initialize basic systems
 ctrlLoop() #run FSM and rest of program
-
-    
-    
-

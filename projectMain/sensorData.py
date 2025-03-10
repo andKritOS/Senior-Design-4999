@@ -15,12 +15,14 @@ cameraFrames = {
 }
 
 def interperetBumpers():
-    if (sensorData["bumpers"[0],[1],[2]] == 1):
+    if (sensorData["bumpers"[0] or [1] or [2]] == 1):
         return 1
     else: 
         return 0
 
 def interpretSonicSensor():
+    if (sensorData["ultSonic"[]] == ):
+        
     
 def interpretColorSensor():
     #set function up so that when called without arguments, all color sensors are checked
