@@ -10,24 +10,19 @@ sensorData = {
     "bumpers": [0,0,0] #if this ever becomes 1, something went wrong and the robot will stop
 }
 
-cameraFrames = {
+def interperetCamera():
 
-}
+
+#list out all camera frame types as individual variables
+cameraFrame_RAW
+
 
 def interperetBumpers():
-    if (sensorData["bumpers"[0] or [1] or [2]] == 1):
+    if (sensorData["bumpers"][0] or [1] or [2] == 1):
         return 1
-    else: 
+    el: 
         return 0
 
 def interpretSonicSensor():
     if (sensorData["ultSonic"[]] == ):
         
-    
-def interpretColorSensor():
-    #set function up so that when called without arguments, all color sensors are checked
-def interpretCameraDots():
-
-def interpretCameraLines():
-
-def interpretCameraCorners():

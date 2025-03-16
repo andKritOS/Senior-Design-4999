@@ -4,13 +4,24 @@
 #ME 4999 CAPSTONE PROJECT (GROUP 20)
 #WRITTEN BY ANDREW KRITIKOS COPYRIGHT 2025
 
-import gpiozero as gpio
+import gpiozero as gpio #gpio handling library
+import board #PI gpio access
 import sensorData
-import board
-import adafruit_tcs34725
+import adafruit_blinka #circuit python compatability for RGB sensor libraries
+import adafruit_tcs34725 #RGB sensors
+import adafruit_tca9548a #multiplexer
 from time import sleep
 
 #--------------------[[USER EDITABLE VARIABLES]]-------------------------------
+
+#setup I2C connection
+i2c = board.I2C() #creates I2C bus 
+tca = adafruit_tcs34725.TCS34725(i2c) #creates a singular device
+
+#create color sensor objects
+
+rgbLeft = adafruit_tcs34725.TCS34725(tca[0])
+rgbRight = adafruit_tcs34725.TCS34725(tca[1])
 
 #class  variables
 _hardwarePWMFrequency = 200
@@ -19,12 +30,7 @@ _ultrasonicThreshDist = 0.3 #float (meters) of the distance when the vehicle sho
 _servoMaxTurnAngle = 45 #maximum allowed angle (degrees) (positive and negative) for servo to turn.
 _servoCalibrationAngle = 0 #angle (degrees) offset for which servo will return upon leaving
 _motorMaxSpeed = 3 #speed at which the robot moves forward at full power (meters/sec).
-_maxRev = 90 #units of revolutions per minute
 _MotorIncIntervalSeconds = 0.05 #the amount of time (seconds) with which the incremental motion is to wait before checking total distance
-wheelRadius = 3.175 #wheel radius in cm
-travelSpeed = (_maxRev*(2 * 3.14 * wheelRadius)/100)/60 #units in meters per second
-ctrl_PD = {'P': 1,'D': 1} #PD calibration for smooth motor control
-
 
 #------------[[NON-EDITABLE VARIABLES, DO NOT EDIT PAST THIS LINE]]-------------
 
@@ -37,27 +43,11 @@ ctrl_PD = {'P': 1,'D': 1} #PD calibration for smooth motor control
 
 pinAsgn = {
     #---------------------MOTORS---------------------
-    "frontLeftForward": (8,1,0),  # controller 1, MotorA, IN1_0
-    "frontLeftBackward": (7,1,0),  # controller 1, MotorA, IN2_0
-    "frontRightForward": (5,1,0),  # controller 1, MotorB, IN3_0
-    "frontRightBackward": (6,1,0),  # controller 1, MotorB, IN4_0
-    "frontLeftPWM": (11,1,1),  # controller 1, MotorB, ENA_0
-    "frontRightPWM": (12,1,1),  # controller 1, MotorB, ENB_0
-    "backLeftForward": (19,1,0),  # controller 2, MotorA, IN1_1
-    "backLeftBackward": (16,1,0),  # controller 2, MotorA, IN2_1
-    "backRightForward": (26,1,0),  # controller 2, MotorB, IN3_1
-    "backRightBackward": (20,1,0),  # controller 2, MotorB, IN4_1
-    "backLeftPWM": (13,1,1),  # controller 2, MotorB, ENA_1
-    "backRightPWM": (21,1,1),  # controller 2, MotorB, ENB_1
     "cameraGimbalServo": (9,1,0),  # independent servo (SET UP PIN TO USE SOFTWARE PWM, ALL HARDWARE USED)
     #---------------------LEDS-----------------------
     "frontRGB_Red": (4,1,0), # 
     "frontRGB_Green": (17,1,0), #
     #"rearRedLED": (X,X), #unused, will be directly plugged into the 3.3 volt pinb
-    #---------------------BUTTONS--------------------
-    "leftBumper": (25,1,0),
-    "centerBumper": (24,1,0),
-    "rightBumper": (10,1,0),
     #------------------COLOR_SENSOR------------------
     #declares I2C communication
     "Select_A0": (18,1,0), #please review, this needs to be an I2C connection because it doesn't strictly contain data pins
@@ -67,50 +57,51 @@ pinAsgn = {
     "I2C_SDA": (22,1,0),
     "I2C_SCL": (24,0,0),
     #------------------ULTRASONIC--------------------
-    "ultraTrig": (2,1,0), #ultrasonic trigger pin
-    "ultraEcho": (3,0,0) #ultrasonic feedback pin
+    "ultraTrig": (26,1,0), #ultrasonic trigger pin
+    "ultraEcho": (16,0,0) #ultrasonic feedback pin
 }
 
-# pin assignments
+#------------------------------SENSOR ASSIGNMENTS---------------------------------------------------
+
 #FRONT LEFT
 motorFL = gpio.Motor(
-    pinAsgn["frontLeftForward"[0]], #forward
-    pinAsgn["frontLeftBackward"[0]], #backward
-    pinAsgn["frontLeftPWM"[0]], #backward
+    pinAsgn["frontLeftForward"][0], #forward
+    pinAsgn["frontLeftBackward"][0], #backward
+    pinAsgn["frontLeftPWM"][0], #backward
     True,
     None
 )
 
 #FRONT RIGHT
 motorFR = gpio.Motor(
-    pinAsgn["frontRightForward"[0]], #forward
-    pinAsgn["frontRightBackward"[0]], #backward
-    pinAsgn["frontRightPWM"[0]], #backward
+    pinAsgn["frontRightForward"][0], #forward
+    pinAsgn["frontRightBackward"][0], #backward
+    pinAsgn["frontRightPWM"][0], #backward
     True,
     None
 )
 
 #BACK LEFT
 motorBL = gpio.Motor(
-    pinAsgn["backLeftForward"[0]], #forward
-    pinAsgn["backLeftBackward"[0]], #backward
-    pinAsgn["backLeftPWM"[0]], #backward
+    pinAsgn["backLeftForward"][0], #forward
+    pinAsgn["backLeftBackward"][0], #backward
+    pinAsgn["backLeftPWM"][0], #backward
     True,
     None
 )
 
 #BACK RIGHT
 motorBR = gpio.Motor(
-    pinAsgn["backRightForward"[0]], #forward
-    pinAsgn["backRightBackward"[0]], #backward
-    pinAsgn["backRightPWM"[0]], #backward
+    pinAsgn["backRightForward"][0], #forward
+    pinAsgn["backRightBackward"][0], #backward
+    pinAsgn["backRightPWM"][0], #backward
     True,
     None
 )
 
 #CAMERA SERVO
 camServo = gpio.AngularServoservo(
-    pinAsgn["cameraGimbalServo"[0]],
+    pinAsgn["cameraGimbalServo"][0]
     _servoMaxTurnAngle, #angle on reset
     -_servoCalibrationAngle, #min servo angle
     _servoCalibrationAngle, #max servo angle
@@ -119,6 +110,7 @@ camServo = gpio.AngularServoservo(
     0.020, #frame width
     None
 )
+
 
 #FRONT RED LED
 fntRed = gpio.LED(pinAsgn["frontRGB_Red"[0]])
@@ -157,7 +149,14 @@ bumperSWR = gpio.Button(
     None #Pin factory, used for SPI
 )
 
+
 #Color sensors
+
+#I2C multiplexer select pins
+
+muxSelectA0 = gpio.DigitalOutputDevice(["Select_A0"][0])
+muxSelectA1 = gpio.DigitalOutputDevice(["Select_A1"][0])
+muxSelectA2 = gpio.DigitalOutputDevice(["Select_A2"][0])
 
 #Left
 clrSens_L = gpio.InputDevice()
@@ -170,25 +169,31 @@ clrSens_R = gpio.InputDevice()
 
 #Ultrasonic Sensor
 ultSon = gpio.DistanceSensor(
-    pinAsgn["ultraTrig"[0]],
-    pinAsgn["ultraEcho"[0]],
-    9, #length of queue of read valuespinAsgn
-    4.0, #max readable distance (meters)
-    _ultrasonicThreshDist, #IMPORTANT! THRESHOLD DISTANCE! TRIGGER IN RANGE DISTANCE FOR SENSOR
-    False, #FALSE = report values ONLY after the queue has filled up
-    None #pin factory
+    pinAsgn["ultraTrig"][0],
+    pinAsgn["ultraEcho"][0]
+    #9, #length of queue of read valuespinAsgn
+    #4.0, #max readable distance (meters)
+    #_ultrasonicThreshDist, #IMPORTANT! THRESHOLD DISTANCE! TRIGGER IN RANGE DISTANCE FOR SENSOR
+    #False, #FALSE = report values ONLY after the queue has filled up
+    #None #pin factory
 )
 # -------------------------------BASIC SENSOR POLL FUNCTIONS-----------------------------------
 
 def pollBumpers():
-    sensorData["bumperSWL"[0]] = bumperSWL.value
-    sensorData["bumperSWC"[0]] = bumperSWC.value
-    sensorData["bumperSWR"[0]] = bumperSWR.value
+    sensorData.sensorData["bumperSWL"][0] = bumperSWL.value
+    sensorData.sensorData["bumperSWC"][1] = bumperSWC.value
+    sensorData.sensorData["bumperSWR"][2] = bumperSWR.value
     print("Polling Bumpers \n")
+    return bumperSWL.value,bumperSWC.value,bumperSWR.value
+    
 
 def pollUltrasonic(position):
-    sensorData[position]
+    
+    print (ultSon.value)
     print("Polling Ultrasonic Sensor \n")
+
+def pollColorSens():
+
 # -------------------------------I2C SETUP FUNCTIONS------------------------------------- 
 
 # -------------------------------COMPOUND FUNCTIONS---------------------------------
@@ -199,31 +204,41 @@ def percToSpd(speed):
 
 def halt():
     #stops all motion
-    motorFL.stop()
+    gpio.stop()
     motorFR.stop()
     motorBL.stop()
     motorBR.stop()
     print("Halting Motors \n")
     
-def moveOrTurnIncremental(direction,distanceMeters,speedPrcnt):
+def moveIncremental(mode,distanceMeters,speedPrcnt,bias):
     
+    #bias works on a scale of 0 to 100
+    # 0 is directing all forward motion to the left motors
+    # 100 is directing all forward motion to the right motors
+    # 50 is direction all forward motion evenly to both sets
+
     distanceMoved = 0
+    leftBiasSpeed = 0
+    rightBiasSpeed = 0
 
     if speedPrcnt is None:
         #if no speed provided, default to full power
         speedPrcnt = 100
 
-    match direction:
-        case 'f':
-            motorFL.forward(speed = percToSpd(speedPrcnt))
-            motorFR.forward(speed = percToSpd(speedPrcnt))
-            motorBL.forward(speed = percToSpd(speedPrcnt))
-            motorBR.forward(speed = percToSpd(speedPrcnt))
-        case 'b':
-            motorFL.backward(speed = percToSpd(speedPrcnt))
-            motorFR.backward(speed = percToSpd(speedPrcnt))
-            motorBL.backward(speed = percToSpd(speedPrcnt))
-            motorBR.backward(speed = percToSpd(speedPrcnt))
+    if bias is not None:
+        leftBiasSpeed = speedPrcnt * (100 - bias)/100
+        rightBiasSpeed = speedPrcnt * (bias)/100
+
+    else:
+        leftBiasSpeed = speedPrcnt
+        rightBiasSpeed = speedPrcnt
+
+    match mode:
+        case 'drive':
+            motorFL.forward(speed = percToSpd(leftBiasSpeed))
+            motorFR.forward(speed = percToSpd(rightBiasSpeed))
+            motorBL.forward(speed = percToSpd(leftBiasSpeed))
+            motorBR.forward(speed = percToSpd(rightBiasSpeed))
         case 'clk':
             motorFL.forward(speed = percToSpd(speedPrcnt))
             motorFR.backward(speed = percToSpd(speedPrcnt))
@@ -241,17 +256,7 @@ def moveOrTurnIncremental(direction,distanceMeters,speedPrcnt):
     while(distanceMoved < distanceMeters):
         #d = v * t
         sleep(_MotorIncIntervalSeconds) #delays time in seconds
-        distanceMoved += ((travelSpeed * speedPrcnt)) * (_MotorIncIntervalSeconds)
-
-    halt()
-
-#turns left or right incrementally
-def followContinuous():
-    
-    motorFL.forward()
-    motorFR.forward()
-    motorBL.forward()
-    motorBR.forward()
+        distanceMoved += ((_motorMaxSpeed * speedPrcnt)) * (_MotorIncIntervalSeconds)
 
 def resetGimbal():
     camServo.value = _servoCalibrationAngle
@@ -282,7 +287,6 @@ def emergencyStop():
     motorBR.close()
     camServo.value = None #will be able to freely move
     print("EMERGENCY STOP HAS BEEN DEPLOYED!\n")
-    
     
 def moonWalk():
     print("WALKIN' ON THE MOON, BABY!\n")
