@@ -1,0 +1,206 @@
+import cv2 as cv
+import sensorData
+import numpy as np
+import string
+from colorama import Fore, Back, Style, init
+
+init() #initializes colorama for colored terminal text
+#----------------------PRIVATE DEFINED VARIABLES--------------------------------
+#camera feed settings
+cameraWidth = 640
+cameraHeight = 480
+cameraChannelCnt = 3
+thresh_value = 200
+stopLineDotThresh = 4 # The number of corners the camera needs to give a postive result
+stopLineTimeThresh = 2 # Time (sec) provided to "debounce" camera results
+
+#-----stop line detection variables
+dotsOnLeft = 0
+dotsOnRight = 0
+
+#-----Screen sector variables
+x_scrn, y_scrn, h_scrn = 0, 0, cameraHeight
+#cuts the image into thirds verticaly
+w_tri_1 = round(cameraWidth * (1/3))
+w_tri_2 = round(cameraWidth * (2/3)) 
+w_tri_3 = round(cameraWidth)
+#cuts the image into thirds horizontally
+h_tri_1 = round(cameraHeight * (1/3))
+h_tri_2 = round(cameraHeight * (2/3))
+h_tri_3 = round(cameraHeight)
+
+#-----HSV color definitions
+hsvColors = {
+    "yellowLo" : np.array([14, 0, 255]),
+    "yellowHi" : np.array([30, 118, 255]),
+    "greenLo" : np.array([38, 28, 173]),
+    "greenHi" : np.array([79, 255, 255])
+}
+
+#-----Video capture declaration
+
+cap = cv.VideoCapture(0) #frameRaw is BGR
+cameraWidth = int(cap.get(cv.CAP_PROP_FRAME_WIDTH))
+cameraHeight = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))
+#camera_channel_count = cap.get(cv.CAP_PROP_VIDEO_TOTAL_CHANNELS)
+
+#----------------------FRAME FUNCTIONS AND PROCESSING--------------------------------
+
+def startCamera():
+    global cap
+    cap = cv.VideoCapture(0) #frameRaw is BGR
+    camera_width = cap.get(cv.CAP_PROP_FRAME_WIDTH)
+    camera_height = cap.get(cv.CAP_PROP_FRAME_HEIGHT)
+    camera_channel_count = cap.get(cv.CAP_PROP_VIDEO_TOTAL_CHANNELS)
+
+def createHSVMasks(baseFrame,frameColorName):
+     loCase = frameColorName.lower()
+     newImage = cv.inRange(baseFrame, hsvColors[loCase + "Lo"], hsvColors[loCase + "Hi"])
+     return newImage
+
+def apply_AND_Mask(baseFrame,maskFrame):
+    newImage = cv.bitwise_and(baseFrame, baseFrame, mask= maskFrame)
+    return newImage
+
+def apply_OR_Mask(baseFrame,maskFrame):
+    newImage = cv.bitwise_or(baseFrame, baseFrame, mask= maskFrame)
+    return newImage
+
+def drawBoxesForColor(baseFrame,maskFrame,boxText):
+    cntFrame, _ = cv.findContours(maskFrame, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    for cnt in cntFrame:
+        (x,y,w,h) = cv.boundingRect(cnt)
+        cv.rectangle(baseFrame, (x,y), (x + w, y + h), (0, 255, 255), 3)
+        cv.putText(baseFrame, boxText, (x, y-10), cv.FONT_HERSHEY_PLAIN, 2, (255, 255, 255), 2)
+    return cntFrame
+
+def drawCirclesForColor(baseFrame,maskFrame,boxText):
+    cntFrame, _ = cv.findContours(maskFrame, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    for cnt in cntFrame:
+        (x,y), radius = cv.minEnclosingCircle(cnt)
+        center = (int(x),int(y))
+        radius = int(radius)
+        cv.circle(baseFrame, center, radius, (0, 255, 255), 3)
+        cv.putText(baseFrame, boxText, (x, y), cv.FONT_HERSHEY_PLAIN, 2, (255, 255, 255), 2)
+    return cntFrame
+
+def checkWithinROI(cornerImage):
+        
+    global dotsOnLeft,dotsOnRight
+    dotsOnLeft = 0
+    dotsOnRight = 0
+
+    #stop line detector
+    for corner in corners:
+        x, y = corner.ravel()
+        frameFilterCorners = cv.circle(frameResized, center=(x,y), radius = 8, color=(0,0,255), thickness=-1)
+
+        if ((x >= (x_scrn)) and (x <= (x_scrn + w_tri_1)) and (y >= (y_scrn)) and (y <= (y_scrn+h_scrn))): #checks for left third of the screen
+            if (y >= (y_scrn + h_tri_1)) and (y <= (y_scrn + h_tri_2)):
+                dotsOnLeft += 1
+        
+        if ((x >= (x_scrn + w_tri_2)) and (x <= (x_scrn + w_tri_3)) and (y >= (y_scrn)) and (y <= (y_scrn+h_scrn))): #checks for left third of the screen
+            if (y >= (y_scrn + h_tri_1)) and (y <= (y_scrn + h_tri_2)):
+                dotsOnRight += 1
+
+    return frameFilterCorners
+
+def drawROI(baseFrame):
+    baseFrame = cv.rectangle(baseFrame,(x_scrn,y_scrn),(x_scrn + w_tri_1,y_scrn + h_scrn),(0,255,0),thickness = 4) #left vertical tri
+    baseFrame = cv.rectangle(baseFrame,(x_scrn + w_tri_2,y_scrn),(x_scrn + w_tri_3,y_scrn + h_scrn),(0,255,0),thickness = 4) #right vertical tri
+    baseFrame = cv.rectangle(baseFrame,(x_scrn,y_scrn+h_tri_1),(x_scrn + w_tri_3,y_scrn + h_tri_2),(0,0,255),thickness = 4) #middle horizontal tri
+    return baseFrame
+
+#------------ DATA MANAGEMENT FUNCTIONS
+
+def resetCameraData():
+    #resets values for when operations for a given cycle have completed
+    sensorData.rightLightDetected = False
+    sensorData.leftLightDetected = False
+    sensorData.leftLightDetected = False
+    sensorData.yellowLightDetected = False
+    sensorData.rightLightDetected = False
+
+def resetSensorData():
+    sensorData.sensorData["ultSonic"][0] = 0
+    sensorData.sensorData["ultSonic"][1] = 0
+    sensorData.sensorData["ultSonic"][2] = 0
+
+    for i in range(0,2):
+        for j in range(0,2):
+            sensorData.sensorData["colorSens"][i][j] = 0
+
+    sensorData.sensorData["bumpers"][0] = 0
+    sensorData.sensorData["bumpers"][1] = 0
+    sensorData.sensorData["bumpers"][2] = 0
+
+#------------------------MAJOR DETECTION FUNCTIONS--------------------------
+
+def detectStopLines(cornerImage):
+
+    global corners,frameResized
+    ret,frameRAW = cap.read(0)
+
+    frameResized = cv.resize(frameRAW,(cameraWidth,cameraHeight))
+
+    frameHSV = cv.cvtColor(frameResized,cv.COLOR_BGR2HSV)
+    frameBlue = createHSVMasks(frameHSV,"blue")
+    blurFrame = cv.GaussianBlur(frameBlue,(51,51),3)
+    detectedEdges = cv.Canny(blurFrame,50,180)
+    detectedEdges = cv.GaussianBlur(detectedEdges,(5,5),3)
+
+    corners = cv.goodFeaturesToTrack(detectedEdges, maxCorners = 100, qualityLevel = 0.02, minDistance=20.0,useHarrisDetector=True,k=0.1)
+    if corners is not None:
+        corners = np.int0(corners)
+        frameFilterCorners = checkWithinROI(corners)
+    else:
+        frameFilterCorners = detectedEdges
+    
+    frameFilterCorners = drawROI(frameResized)
+    #to identify stop lines, I first need to isolate all lines that are associated with the color blue
+
+    #determines location of dots
+    if (dotsOnLeft >= stopLineDotThresh):
+        print(Fore.CYAN + "LEFT STOPLINE WAS DETECTED" + Style.RESET_ALL)
+        sensorData.leftStopLineDetected = True
+    if (dotsOnRight >= stopLineDotThresh):
+        print(Fore.CYAN + "RIGHT STOPLINE WAS DETECTED" + Style.RESET_ALL)
+        sensorData.rightStopLineDetected = True
+
+def detectLEDS():
+    ret, frameRAW = cap.read()
+
+    frameResized = cv.resize(frameRAW,(cameraWidth,cameraHeight))
+    baseFrameGray = cv.cvtColor(frameResized,cv.COLOR_BGR2GRAY) #GRAY
+
+    maskGreenHSV = cv.cvtColor(frameResized,cv.COLOR_BGR2HSV)
+    maskYellowHSV = cv.cvtColor(frameResized,cv.COLOR_BGR2HSV)
+
+    maskGreenHSV = createHSVMasks(maskGreenHSV,"green") #Green HSV mask
+    maskYellowHSV = createHSVMasks(maskYellowHSV,"yellow") #Yellow HSV mask
+
+    #creates a blurry frame with which to apply to the circles
+    maskGreenHSV = cv.medianBlur(maskGreenHSV, 5) # HSV only takes 3 and 5 as kernel size when using uint8
+    maskYellowHSV = cv.medianBlur(maskYellowHSV, 5) # HSV only takes 3 and 5 as kernel size when using uint8
+
+    baseFrameGray = cv.medianBlur(baseFrameGray, 3) # HSV only takes 3 and 5 as kernel size when using uint8
+    ret, maskBright = cv.threshold(baseFrameGray,210,255,cv.THRESH_BINARY) #filters all brightest pixels from the screen given a certain threshold
+
+    for i in (maskGreenHSV,maskYellowHSV):
+        cntFrame, _ = cv.findContours(i, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+        for cnt in cntFrame:
+            (x,y), radius = cv.minEnclosingCircle(cnt)
+            center = (int(x),int(y))
+            radius = int(radius)
+            cv.circle(i, center, radius, (255, 255, 255), cv.FILLED)
+
+    greenLEDPixels = apply_AND_Mask(maskGreenHSV,maskBright)
+    yellowLEDPixels = apply_AND_Mask(maskYellowHSV,maskBright)
+
+    #calculates the mean x position of the x pixels between the two photos
+    totalArray = np.add(greenLEDPixels,yellowLEDPixels,x)
+    majorityRule = np.mean(totalArray)
+    if(totalArray > majorityRule/2):
+        sensorData.leftLightDetected = True
+    elif(totalArray < majorityRule/2):
+        sensorData.rightLightDetected = True

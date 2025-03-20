@@ -79,8 +79,7 @@ def reportForDots():
     if (dotsOnLeft >= 4):
         print(Fore.CYAN + "LEFT STOPLINE WAS DETECTED" + Style.RESET_ALL)
     if (dotsOnRight >= 4):
-        print(Fore.CYAN + "RIGHT STOPLINE WAS DETECTED" + Style.RESET_ALL)
-    
+        print(Fore.CYAN + "RIGHT STOPLINE WAS DETECTED" + Style.RESET_ALL)    
 
 def checkWithinROI(cornerImage):
         
