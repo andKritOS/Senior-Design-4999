@@ -139,7 +139,9 @@ def boundValue(value):
 
 def findTOB():
     #check clocks
-    time.time()
+    if(sensorData.interpreretColorSensor(0)):
+        if _timer_L is not 0:
+            _timer_L = time.time()
 
 def calculateBiasPD():
 
@@ -147,6 +149,7 @@ def calculateBiasPD():
     E_now_L = 0 - _TOB_L
     E_now_R = 0 - _TOB_R
 
+    
 
     bias = 50 - _kp*[()+()] + _kd*[()+()]
     return boundValue(bias)
@@ -154,7 +157,7 @@ def calculateBiasPD():
 # -------------------------------BASIC SENSOR POLL FUNCTIONS-----------------------------------
 
 def pollBumpers():
-    sensorData.sensorData["bumperSWL"][0] = bumperSWL.value
+    sensorData.sensorData["bumperLeft"][0] = bumperSWL.value
     sensorData.sensorData["bumperSWC"][1] = bumperSWC.value
     sensorData.sensorData["bumperSWR"][2] = bumperSWR.value
     print("Polling Bumpers \n")
