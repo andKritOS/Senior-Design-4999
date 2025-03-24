@@ -34,21 +34,33 @@ leftLightDetected = False
 yellowLightDetected = False
 rightLightDetected = False
 
+cameraLineTrackingEnabled = False
+cameraCornerTrackingEnabled = False
+cameraColorTrackingEnabled = False
+
 #-----Ultrasonic Exclusive Truths
 obstacleOnLeft = False
 obstacleOnRight = False
 obstacleAhead = False
 obstaclePresent = False
 
-#-----Compound and State Machine  Truths
+#-----Color Sensor Exclusive Truths
 turnLeftColorSensor = False
 turnRightColorSensor = False
 
+#-----Compound and State Machine Dependent Truths
 lineIsVisible = False
 stopLineDetected = False
 sharpTurnDetected = False
-leftStopLineDetected = False
-rightStopLineDetected = False
+
+foundLeftStopLine = False
+foundRightStopLine = False
+foundPathForward = False
+trafficLightDetected = False
+
+lightDirectionDetermined = False
+intersectionTypeIdentified = False
+turnDirection = None #string type
 
 #----------FILE-VISIBLE WRITE FUNCTIONS----------
 
@@ -64,29 +76,22 @@ def writeBumperSensorData(sensorString: str, data):
 def writeColorSensorData(sensorString: str, data):
     match sensorString:
         case "colorLeft":
-            sensorData.sensorData["colorSensor"][0] = round(data[0])
-            sensorData.sensorData["colorSensor"][0] = round(data[1])
-            sensorData.sensorData["colorSensor"][0] = round(data[2])
+            sensorData.sensorData["colorSensor"][0] = round(data)
         case "colorCenter":
-            sensorData.sensorData["colorSensor"][1] = round(data[0])
-            sensorData.sensorData["colorSensor"][1] = round(data[1])
-            sensorData.sensorData["colorSensor"][1] = round(data[2])
+            sensorData.sensorData["colorSensor"][1] = round(data)
         case "colorRight":
-            sensorData.sensorData["colorSensor"][2] = round(data[0])
-            sensorData.sensorData["colorSensor"][2] = round(data[1])
-            sensorData.sensorData["colorSensor"][2] = round(data[2])
-            
+            sensorData.sensorData["colorSensor"][2] = round(data)
+
 def writeSonicSensorData(sensorString: str, data):
     match sensorString:
-        case "bumperLeft":
-            sensorData.sensorData["bumpers"][0] = round(data)
-        case "bumperCenter":
-            sensorData.sensorData["bumpers"][1] = round(data)
-        case "bumperRight":
-            sensorData.sensorData["bumpers"][2] = round(data)
+        case "ultraSonicLeft":
+            sensorData.sensorData["ultraSonic"][0] = round(data * 100)
+        case "ultraSonicCenter":
+            sensorData.sensorData["ultraSonic"][1] = round(data * 100)
+        case "ultraSonicRight":
+            sensorData.sensorData["ultraSonic"][2] = round(data * 100)
 
 #----------FILE-VISIBLE INTERPRET FUNCTIONS----------
-
 #-----Color Sensors
 def interpretColorSensors(sensorNum):
 
@@ -111,19 +116,20 @@ def interpretColorSensors(sensorNum):
                 blueOnRight = True
 
     lineIsVisible = _blueOnCenter #one is equivalent to another
-    stopLineDetected = _blueOnLeft and _blueOnCenter and _blueOnRight
-    sharpTurnDetected = (not _blueOnLeft and not _blueOnCenter) or (not _blueOnRight and not _blueOnCenter)
-    turnLeftColorSensor = _blueOnLeft
-    turnRightColorSensor = _blueOnRight
-
+    stopLineDetected = blueOnLeft and _blueOnCenter and _blueOnRight
+    sharpTurnDetected = (not blueOnLeft and not blueOnCenter) or (not blueOnRight and not blueOnCenter)
+    turnLeftColorSensor = blueOnLeft
+    turnRightColorSensor = blueOnRight
 #-----Bumper Sensors
 def interpretBumpers():
+    
     global bumperEngaged
 
     if any(sensorData["bumpers"]):
         bumperEngaged = True
-
+#-----UltraSonic Sensors
 def interpretSonicSensor(directionString: str):
+
 
     global obstacleOnLeft,obstacleAhead,obstacleOnRight, obstaclePresent
 
@@ -147,10 +153,18 @@ def interpretSonicSensor(directionString: str):
 
             obstaclePresent = obstacleOnLeft or obstacleAhead or obstacleOnRight
 
- #----------MISC FUNCTIONS       
+def interpretCameraColors():
+    global 
+    if ()
+def interpretCameraCorners():
 
+ #----------MISC FUNCTIONS       
+#----------DATA-RESET FUNCTIONS----------
 def resetTruthData(sensorString: str):
-    global obstacleOnLeft,obstacleAhead,obstacleOnRight,bumperEngaged,_blueOnLeft,_blueOnCenter,_blueOnRight
+
+    #IF THERE IS EVER A PROBLEM WITH DATA WRITING OR ANY OTHER DETECTION, CHECK IT HERE
+
+    global blueOnLeft,blueOnCenter,blueOnRight,obstacleOnLeft,obstacleAhead,obstacleOnRight,bumperEngaged,_blueOnLeft,_blueOnCenter,_blueOnRight
     global lineIsVisible,stopLineDetected,leftStopLineDetected,rightStopLineDetected, obstaclePresent, sharpTurnDetected
 
     for each in sensorString:
@@ -164,12 +178,25 @@ def resetTruthData(sensorString: str):
                 print("Error, why would you ever want to clear the bumper data? You crashed...\n")
                 bumperEngaged = False
             case "lineDetection":
-                _blueOnLeft = False
-                _blueOnRight = False
-                _blueOnCenter = False
+                blueOnLeft = False
+                blueOnRight = False
+                blueOnCenter = False
                 lineIsVisible = False
                 stopLineDetected = False
                 sharpTurnDetected = False
             case _:
                 print("ERROR, INVALID DATA RESET CALL\n")
 
+def resetSensorData():
+    global sensorData
+    sensorData["ultraSonic"][0] = 0
+    sensorData["ultraSonic"][1] = 0
+    sensorData["ultraSonic"][2] = 0
+
+    for i in range(0,2):
+        for j in range(0,2):
+            sensorData["colorSensor"][i][j] = 0
+
+    sensorData["bumpers"][0] = 0
+    sensorData["bumpers"][1] = 0
+    sensorData["bumpers"][2] = 0

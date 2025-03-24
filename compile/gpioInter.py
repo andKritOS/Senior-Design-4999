@@ -30,12 +30,19 @@ _kp = 0.2 #proportional control variable for pd control
 _kd = 0.1 #differential control variable for pd control
 
 #-----PD internal varaibles
-_pd_new_err = 0 #current error value for pd control
-_pd_old_err = 0 #previous error value for pd control
-_timer_L = 0 #timer value for left
-_timer_R = 0 #timer value for right
-_TOB_L = 0 #time on blue, RIGHT SENSOR
-_TOB_R = 0 #time on blue, RIGHT SENSOR
+
+_E_now_L = 0
+_E_now_R = 0
+_E_last_L = 0
+_E_last_R = 0
+
+#-----Time-on-blue detection
+
+_TOB_R_startTime = 0 #timer value for left
+_TOB_L_startTime = 0 #timer value for right
+
+_TOB_R_runningTime = None
+_TOB_L_runningTime = None
 
 #--------------------[[USER EDITABLE VARIABLES]]--------------------------------
 
@@ -75,41 +82,50 @@ pinAsgn = {
 
 #FRONT LEFT
 motorFL = gpio.Motor(
-    pinAsgn["frontLeftForward"][0], #forward
-    pinAsgn["frontLeftBackward"][0], #backward
+    forward= pinAsgn["frontLeftForward"][0], #forward
+    backward= pinAsgn["frontLeftBackward"][0], #backward
+    enable= pinAsgn["frontLeftPWM"], #enable pin
+    pwm=True
 )
 #FRONT RIGHT
 motorFR = gpio.Motor(
-    pinAsgn["frontRightForward"][0], #forward
-    pinAsgn["frontRightBackward"][0], #backward
+    forward= pinAsgn["frontRightForward"][0], #forward
+    backward= pinAsgn["frontRightBackward"][0], #backward
+    enable= pinAsgn["frontRightPWM"], #enable pin
+    pwm=True
 )
 #BACK LEFT
 motorBL = gpio.Motor(
-    pinAsgn["backLeftForward"][0], #forward
-    pinAsgn["backLeftBackward"][0], #backward
+    forward= pinAsgn["backLeftForward"][0], #forward
+    backward= pinAsgn["backLeftBackward"][0], #backward
+    enable= pinAsgn["backLeftPWM"], #enable pin
+    pwm=True
 )
 #BACK RIGHT
 motorBR = gpio.Motor(
-    pinAsgn["backRightForward"][0], #forward
-    pinAsgn["backRightBackward"][0], #backward
+    forward= pinAsgn["backRightForward"][0], #forward
+    backward= pinAsgn["backRightBackward"][0], #backward
+    enable= pinAsgn["backRightPWM"], #enable pin
+    pwm=True
 )
+
 #CAMERA SERVO
-camServo = gpio.AngularServoservo(
-    pinAsgn["cameraGimbalServo"][0]
+camServo = gpio.Servo(
+    pin= pinAsgn["cameraGimbalServo"][0]
 )
 
 #-----FRONT RED LED
-fntRed = gpio.DigitalOutputDevice(pinAsgn["frontRGB_Red"[0]])
+fntRed = gpio.DigitalOutputDevice(pin= pinAsgn["frontRGB_Red"[0]])
 #-----FRONT GREEN LED
-fntGreen = gpio.DigitalOutputDevice(pinAsgn["frontRGB_Green"[0]])
+fntGreen = gpio.DigitalOutputDevice(pin= pinAsgn["frontRGB_Green"[0]])
 
 #-----BUMPER SWITCHES
 #Left Bumper Switch
-bumperSWL = gpio.Button(pinAsgn["leftBumper"[0]])
+bumperSWL = gpio.Button(pin= pinAsgn["leftBumper"[0]])
 #Center Bumper Switch
-bumperSWC = gpio.Button(pinAsgn["centerBumper"[0]])
+bumperSWC = gpio.Button(pin= pinAsgn["centerBumper"[0]])
 #Right Bumper Switch
-bumperSWR = gpio.Button(pinAsgn["rightBumper"[0]])
+bumperSWR = gpio.Button(pin= pinAsgn["rightBumper"[0]])
 
 #----I2C Connection
 i2c = board.I2C() #creates I2C bus 
@@ -134,47 +150,72 @@ def percToSpd(speed):
     speed = speed/100
     return speed
 
-def boundValue(value):
-    return max(biasMin, min(value, biasMax))
+def checkTOB():
+    global _TOB_R_startTime, _TOB_L_startTime, _TOB_R_runningTime, _TOB_L_runningTime
 
-def findTOB():
-    #check clocks
-    if(sensorData.interpreretColorSensor(0)):
-        if _timer_L is not 0:
-            _timer_L = time.time()
+    #update RIGHT time on blue
+    if ((_TOB_R_startTime is None) and (sensorData.blueOnRight)):
+        _TOB_R_startTime = time.monotonic()
+    elif ((_TOB_R_startTime is not None) and (sensorData.blueOnRight)):
+        _TOB_R_runningTime = time.monotonic() - _TOB_R_startTime
+    else:
+        _TOB_R_startTime = None
+        _TOB_R_runningTime = 0
+
+    #update LEFT time on blue
+    if ((_TOB_L_startTime is None) and (sensorData.blueOnLeft)):
+        _TOB_L_startTime = time.monotonic()
+    elif ((_TOB_L_startTime is not None) and (sensorData.blueOnLeft)):
+        _TOB_L_runningTime = time.monotonic() - _TOB_L_startTime
+    else:
+        _TOB_L_startTime = None
+        _TOB_L_runningTime = 0
 
 def calculateBiasPD():
 
-    findTOB()
-    E_now_L = 0 - _TOB_L
-    E_now_R = 0 - _TOB_R
+    global _E_now_L,_E_now_R,_E_last_L,_E_last_R,_bias
 
+    checkTOB()
+
+    #setting last value times
+    _E_last_L = _E_now_L
+    _E_last_R = _E_now_R
     
+    #setting current value times
+    _E_now_L = _TOB_L_runningTime
+    _E_now_R = _TOB_R_runningTime
 
-    bias = 50 - _kp*[()+()] + _kd*[()+()]
-    return boundValue(bias)
+    #creating differential term
+    _E_Dt_L = _E_now_L - _E_last_L
+    _E_Dt_R = _E_now_R - _E_last_R
+
+    #bias calculation
+    _bias = 50 + _kp*[(_E_now_R)-(_E_now_L)] + _kd*[(_E_Dt_R)-(_E_Dt_L)]
+
+    return max(biasMin, min(_bias, biasMax))
 
 # -------------------------------BASIC SENSOR POLL FUNCTIONS-----------------------------------
 
 def pollBumpers():
-    sensorData.sensorData["bumperLeft"][0] = bumperSWL.value
-    sensorData.sensorData["bumperSWC"][1] = bumperSWC.value
-    sensorData.sensorData["bumperSWR"][2] = bumperSWR.value
+    sensorData.writeBumperSensorData("bumperLeft",bumperSWL.value)
+    sensorData.writeBumperSensorData("bumperCenter",bumperSWC.value)
+    sensorData.writeBumperSensorData("bumperRight",bumperSWR.value)
     print("Polling Bumpers \n")
 
 def pollUltrasonic(position):
-    #UNFINISHED
-    #UNFINISHED
-    #UNFINISHED
-    #UNFINISHED
-    sensorData.sensorData["ultSonic"][position] = ultSon
+    match position:
+        case 0:
+            sensorData.writeSonicSensorData("ultraSonicLeft", ultSon.value)
+        case 1:
+            sensorData.writeSonicSensorData("ultraSonicCenter", ultSon.value)
+        case 2:
+            sensorData.writeSonicSensorData("ultraSonicRight", ultSon.value)
     print("Polling Ultrasonic Sensor \n")
 
-
 def pollColorSens():
-    sensorData.sensorData["colorSens"][0] = rgbLeft.color_rgb_bytes
-    sensorData.sensorData["colorSens"][1] = rgbLeft.color_rgb_bytes
-    sensorData.sensorData["colorSens"][2] = rgbLeft.color_rgb_bytes
+    sensorData.writeColorSensorData("colorLeft",rgbLeft.color_rgb_bytes)
+    sensorData.writeColorSensorData("colorCenter",rgbCenter.color_rgb_bytes)
+    sensorData.writeColorSensorData("colorRight",rgbRight.color_rgb_bytes)
 
 # -------------------------------COMPOUND FUNCTIONS---------------------------------
 def halt():
@@ -196,7 +237,7 @@ def updateMotion(mode,speedPrcnt):
     rightBiasSpeed = 0
 
     if speedPrcnt is None:
-        #if no speed provided, default to full power
+        #if no speed provided, default to full powerresetCaresetCa
         speedPrcnt = 100
     else:
         leftBiasSpeed = speedPrcnt

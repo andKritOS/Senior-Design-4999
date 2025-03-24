@@ -9,7 +9,7 @@ import gpioInter as gpio
 import sensorData
 import time
 #----------------------------------------------------------------USER-DEFINED VARAIBLES---------------------------------------------------------------
-interStDelay = 1 #default time to delay by default between states
+interStDelay = 100 #default time (ns) to delay by default between states
 intrSlack = 0.20 #distance (meters) between the stop line and the intersection
 #------------------------------------------------------------NON-USER-DEFINED VARAIBLES---------------------------------------------------------------
 
@@ -68,12 +68,12 @@ stateNames = {
         # Requisite Sensor Groups [1] <- List of sensors or parts of camera code that are searched through so the state only has to refresh important data
         # Post-Transition TRUE Resets [2] <- List of variables that need to be reset to TRUE after state transition happens
         # Post-Transition FALSE Resets [3] <- List of variables that need to be reset to FALSE after state transition happens
-    
+
     "state_Reset": (
         (trans_leaveReset, trans_returnSafeStop),
-        ("cameraLines","ultrasonic","colorRGB"),
+        ("cameraLines","ultrasonic","colorSensors"),
         (None), #TRUE
-        (None)), #
+        (None)), #FALSE
     "state_Safety_Stop": (  #regular car stop, activates for obstacles or intermediate
         (trans_checkEmergency,trans_beginDriving, trans_returnTurn),
         ("cameraLines","bumper","ultrasonic"),
@@ -81,7 +81,7 @@ stateNames = {
         (None)), 
     "state_FollowingLine": (
         (trans_checkEmergency,trans_returnSafeStop,trans_stopLineDetected),
-        ("cameraLines","cameraCorners","bumper","ultrasonic","colorRGB"),
+        ("cameraLines","cameraCorners","bumper","ultrasonic","colorSensors"),
         (None),
         (None)),
     "state_StopLine": (
@@ -106,7 +106,7 @@ stateNames = {
         (None)),
     "state_ExecuteTurn": (
         (trans_checkEmergency,trans_turnFinished,trans_returnSafeStop),
-        ("cameraLines","cameraCorners","bumper","cameraColors","ultrasonic"),
+        ("cameraLines","cameraCorners","bumper","cameraColors","ultrasonic","colorSensors"),
         (None),
         (None)),
     "state_Emergency": (
@@ -121,17 +121,17 @@ def initalize():
     gpio.fntGreen.on()
     gpio.resetGimbal()
 
-def newDelay(customTime):
-    global endTime,isDelayOver
+def createDelay(customTime):
+    global endTime,isDelayOver,startTime
     isDelayOver = False
 
-    startTime = time.monotonic()
+    startTime = time.monotonic_ns()
     if customTime is not None:
-        endTime = time.monotonic() + customTime
+        endTime = time.monotonic_ns() + customTime
     else:
-        endTime = time.monotonic() + interStDelay
+        endTime = time.monotonic_ns() + interStDelay
 
-def checkDelayOver():
+def checkDelay():
     global isDelayOver,endTime
     currentTime = time.monotonic()
 
@@ -156,8 +156,13 @@ def resetStateVars():
 
 def fetchSensorData():
 
-    global isStopLineDetected, isObstaclePresent, isLineVisible, isCollisionBumperEngaged, foundSharpTurn
+    #please note, running cameraCorners and cameraColors as a function intermittently is BAD CODE,
+    #however, we may not have time to multithread depending on how long general debugging takes.
+    #appologies, hope for the best...
 
+    global isStopLineDetected, isObstaclePresent, isLineVisible, isCollisionBumperEngaged, foundSharpTurn
+    global isInterTypeIdentified, isTrafficLightDetected, foundPathForward, foundLeftStopLine, foundRightStopLine, isLightDirectionDetermined, turnDirection
+    
     for i in stateNames[currentState][1]:
         match currentState[1]:
             case "bumper":
@@ -173,6 +178,13 @@ def fetchSensorData():
             case "colorRGB":
                 gpio.pollColorSens()
                 sensorData.interpretColorSensors()
+            case "cameraLines":
+                #THIS IS UNUSED, BUT SAVED INCASE WE NEED TO DO CAMERA LINE TRACKING
+                pass
+            case "cameraCorners":
+                cam.detectStopLines()
+            case "cameraColors":
+                cam.detectLEDS()
             case None:
                 pass
             case _:
@@ -188,16 +200,15 @@ def fetchSensorData():
 
     #REMAINING ASSIGNMENT VALUES:
 
-    #isInterTypeIdentified = False
-    #isTrafficLightDetected = False
-    #foundPathForward = False
-    #foundLeftStopLine = False #assigned by 
-    #foundRightStopLine = False
-    #isLightDirectionDetermined = False
-    #turnDirection = None #String direction for which way to turn
+    isInterTypeIdentified = sensorData.intersectionTypeIdentified
+    isTrafficLightDetected = sensorData.trafficLightDetected
+    foundPathForward = sensorData.foundPathForward
+    foundLeftStopLine = sensorData.foundLeftStopLine
+    foundRightStopLine = sensorData.foundRightStopLine
+    isLightDirectionDetermined = sensorData.lightDirectionDetermined
+    turnDirection = sensorData.turnDirection #String direction for which way to turn
 
 def checkForChangeStates():
-    checkDelayOver()
 
     for i in stateNames[currentState][0]:
         if (i[0] == True):
@@ -224,51 +235,64 @@ def state_Safety_Stop():
     gpio.emergencyStop()
 
 def state_FollowingLine():
-    cameraLineTrackingEnabled = True
+    createDelay()
+    sensorData.cameraLineTrackingEnabled = True
     gpio.resetGimbal()
+
     while(not stateIsTransitioning):
         gpio.updateMotion('drive',)
+        checkDelay()
         fetchSensorData()
         checkForChangeStates()
 
 def state_IdentifyIntersection():
+    global involvedInIntersection
     involvedInIntersection = True
+    createDelay(100)
+
     while (not stateIsTransitioning):
-        
+        checkDelay()
         fetchSensorData()
         checkForChangeStates()
 
 def state_StopLine():
     global involvedInIntersection
-
     involvedInIntersection = True
+    createDelay(1000000000)
     gpio.halt()
+
     while (not stateIsTransitioning):
+        checkDelay()
         fetchSensorData()
         checkForChangeStates()
 
 def state_YieldtoLeft():
     global involvedInIntersection
-
     involvedInIntersection = True
+    createDelay(1000000000)
+
     while (not stateIsTransitioning):
+        checkDelay()
         fetchSensorData()
         checkForChangeStates()
 
 def state_DetermineLight():
     global involvedInIntersection
-
     involvedInIntersection = True
+    createDelay(1000000000)
+
     while (not stateIsTransitioning):
+        checkDelay()
         fetchSensorData()
         checkForChangeStates()
 
 def state_ExecuteTurn():
     global involvedInIntersection
-
     involvedInIntersection = True
     gpio.halt()
     gpio.moveIncremental('f',0.2)
+    createDelay()
+
     while(sensorData.sensorData["colorSens"][]): #move up to intersection phase
         fetchSensorData()
         gpio.moveIncremental('f',0.01)
@@ -279,6 +303,7 @@ def state_ExecuteTurn():
         else:
             gpio.moveIncremental('cnclk',0.01)
     while (not stateIsTransitioning):
+        checkDelay()
         fetchSensorData()
         checkForChangeStates()
     #reset camera gimbal
@@ -325,7 +350,7 @@ def ctrlLoop():
     print ("State has now been changed to {}".format(currentState))
                 
     print ("FSM HAS LEFT THE CONTROL LOOP")
-
+    
 #----------PROGRAM INITIALIZATION----------
 
 ctrlLoop() #run FSM and rest of program

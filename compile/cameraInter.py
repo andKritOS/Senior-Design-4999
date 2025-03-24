@@ -42,16 +42,9 @@ hsvColors = {
 cap = cv.VideoCapture(0) #frameRaw is BGR
 cameraWidth = int(cap.get(cv.CAP_PROP_FRAME_WIDTH))
 cameraHeight = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))
-#camera_channel_count = cap.get(cv.CAP_PROP_VIDEO_TOTAL_CHANNELS)
+camera_channel_count = cap.get(cv.CAP_PROP_VIDEO_TOTAL_CHANNELS)
 
 #----------------------FRAME FUNCTIONS AND PROCESSING--------------------------------
-
-def startCamera():
-    global cap
-    cap = cv.VideoCapture(0) #frameRaw is BGR
-    camera_width = cap.get(cv.CAP_PROP_FRAME_WIDTH)
-    camera_height = cap.get(cv.CAP_PROP_FRAME_HEIGHT)
-    camera_channel_count = cap.get(cv.CAP_PROP_VIDEO_TOTAL_CHANNELS)
 
 def createHSVMasks(baseFrame,frameColorName):
      loCase = frameColorName.lower()
@@ -121,22 +114,13 @@ def resetCameraData():
     sensorData.yellowLightDetected = False
     sensorData.rightLightDetected = False
 
-def resetSensorData():
-    sensorData.sensorData["ultSonic"][0] = 0
-    sensorData.sensorData["ultSonic"][1] = 0
-    sensorData.sensorData["ultSonic"][2] = 0
-
-    for i in range(0,2):
-        for j in range(0,2):
-            sensorData.sensorData["colorSens"][i][j] = 0
-
-    sensorData.sensorData["bumpers"][0] = 0
-    sensorData.sensorData["bumpers"][1] = 0
-    sensorData.sensorData["bumpers"][2] = 0
+    sensorData.cameraCornerTrackingEnabled = False
+    sensorData.cameraColorTrackingEnabled = False
 
 #------------------------MAJOR DETECTION FUNCTIONS--------------------------
 
 def detectStopLines(cornerImage):
+    sensorData.cameraCornerTrackingEnabled = True
 
     global corners,frameResized
     ret,frameRAW = cap.read(0)
@@ -157,7 +141,6 @@ def detectStopLines(cornerImage):
         frameFilterCorners = detectedEdges
     
     frameFilterCorners = drawROI(frameResized)
-    #to identify stop lines, I first need to isolate all lines that are associated with the color blue
 
     #determines location of dots
     if (dotsOnLeft >= stopLineDotThresh):
@@ -168,6 +151,8 @@ def detectStopLines(cornerImage):
         sensorData.rightStopLineDetected = True
 
 def detectLEDS():
+    sensorData.cameraColorTrackingEnabled = True
+
     ret, frameRAW = cap.read()
 
     frameResized = cv.resize(frameRAW,(cameraWidth,cameraHeight))
