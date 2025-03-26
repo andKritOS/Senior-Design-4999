@@ -13,8 +13,8 @@ lightDirection = None
 #HSV color definitions
 
 hsvColors = {
-    "yellowLo" : np.array([14, 0, 255]),
-    "yellowHi" : np.array([30, 118, 255]),
+    "yellowLo" : np.array([0, 27, 255]),
+    "yellowHi" : np.array([30, 255, 255]),
     "greenLo" : np.array([38, 28, 173]), #38, 28, 173
     "greenHi" : np.array([79, 255, 255])
 }
@@ -80,22 +80,11 @@ while True:
         greenLEDPixels = apply_AND_Mask(maskGreenHSV,maskBright)
         yellowLEDPixels = apply_AND_Mask(maskYellowHSV,maskBright)
 
-        #calculates the mean x position of the x pixels between the two photos
-        #determines median relative pixel positions to the screen
-        totalArray = np.add(greenLEDPixels,yellowLEDPixels,x)
-        majorityRule = np.mean(totalArray)
-        if(totalArray > majorityRule/2):
-            lightDirection = "left"
-        elif(totalArray < majorityRule/2):
-            lightDirection = "right"
-        else:
-            lightDirection = None
-
         cv.imshow("frameRaw", frameRAW)
         cv.imshow("frameGray", baseFrameGray)
-        cv.imshow("Mask Green HSV", maskGreenHSV)
+        cv.imshow("Mask Green ", greenLEDPixels)
+        cv.imshow("Mask Yellow ", yellowLEDPixels)
         cv.imshow("maskBright", maskBright)
-        cv.imshow("combinedMask1", combinedMask1)
 
         key = cv.waitKey(1)
         if key == 27:

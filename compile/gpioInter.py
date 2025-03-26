@@ -147,7 +147,7 @@ ultSon = gpio.DistanceSensor(
 
 def percToSpd(speed):
     #speed is taken as percentage and converted into 0 to 1 PWM value
-    speed = speed/100
+    speed = round(speed/100)
     return speed
 
 def checkTOB():
@@ -210,7 +210,6 @@ def pollUltrasonic(position):
             sensorData.writeSonicSensorData("ultraSonicCenter", ultSon.value)
         case 2:
             sensorData.writeSonicSensorData("ultraSonicRight", ultSon.value)
-    print("Polling Ultrasonic Sensor \n")
 
 def pollColorSens():
     sensorData.writeColorSensorData("colorLeft",rgbLeft.color_rgb_bytes)
@@ -233,15 +232,9 @@ def updateMotion(mode,speedPrcnt):
     # 100 is directing all forward motion to the right motorsspeedPrcnt
     # 50 is direction all forward motion evenly to both sets
 
-    leftBiasSpeed = 0
-    rightBiasSpeed = 0
-
     if speedPrcnt is None:
         #if no speed provided, default to full powerresetCaresetCa
         speedPrcnt = 100
-    else:
-        leftBiasSpeed = speedPrcnt
-        rightBiasSpeed = speedPrcnt
 
     match mode:
         case 'pd': #PID controlled   

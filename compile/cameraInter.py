@@ -24,15 +24,18 @@ x_scrn, y_scrn, h_scrn = 0, 0, cameraHeight
 w_tri_1 = round(cameraWidth * (1/3))
 w_tri_2 = round(cameraWidth * (2/3)) 
 w_tri_3 = round(cameraWidth)
+w_half = round(cameraWidth * (0.5))
+
 #cuts the image into thirds horizontally
 h_tri_1 = round(cameraHeight * (1/3))
 h_tri_2 = round(cameraHeight * (2/3))
 h_tri_3 = round(cameraHeight)
+h_half = round(cameraHeight * (0.5))
 
 #-----HSV color definitions
 hsvColors = {
-    "yellowLo" : np.array([14, 0, 255]),
-    "yellowHi" : np.array([30, 118, 255]),
+    "yellowLo" : np.array([0, 27, 255]),
+    "yellowHi" : np.array([30, 255, 255]),
     "greenLo" : np.array([38, 28, 173]),
     "greenHi" : np.array([79, 255, 255])
 }
@@ -122,7 +125,7 @@ def resetCameraData():
 def detectStopLines(cornerImage):
     sensorData.cameraCornerTrackingEnabled = True
 
-    global corners,frameResized
+    global corners,frameResized,frameFilterCorners
     ret,frameRAW = cap.read(0)
 
     frameResized = cv.resize(frameRAW,(cameraWidth,cameraHeight))
@@ -146,9 +149,13 @@ def detectStopLines(cornerImage):
     if (dotsOnLeft >= stopLineDotThresh):
         print(Fore.CYAN + "LEFT STOPLINE WAS DETECTED" + Style.RESET_ALL)
         sensorData.leftStopLineDetected = True
-    if (dotsOnRight >= stopLineDotThresh):
+    elif (dotsOnRight >= stopLineDotThresh):
         print(Fore.CYAN + "RIGHT STOPLINE WAS DETECTED" + Style.RESET_ALL)
         sensorData.rightStopLineDetected = True
+    else:
+        print(Fore.RED + "NO STOPLINE WAS DETECTED" + Style.RESET_ALL)
+        sensorData.leftStopLineDetected = False
+        sensorData.rightStopLineDetected = False      
 
 def detectLEDS():
     sensorData.cameraColorTrackingEnabled = True
@@ -183,9 +190,23 @@ def detectLEDS():
     yellowLEDPixels = apply_AND_Mask(maskYellowHSV,maskBright)
 
     #calculates the mean x position of the x pixels between the two photos
-    totalArray = np.add(greenLEDPixels,yellowLEDPixels,x)
-    majorityRule = np.mean(totalArray)
-    if(totalArray > majorityRule/2):
+    totalArray = np.add(greenLEDPixels,yellowLEDPixels)
+    major = cv.moments(totalArray)
+
+    cX = 0
+    if major["m00"] != 0:  # No division by zero
+        cX = int(major["m10"] / major["m00"])
+    else:
+        cX = 0
+
+    if(cX < w_half):
         sensorData.leftLightDetected = True
-    elif(totalArray < majorityRule/2):
+        print("Left light detected")
+    elif(cX > w_half):
+        print("Right light detected")
         sensorData.rightLightDetected = True
+    else:
+        print("Right on the money? \n")
+
+    cv.imshow("greenLEDPixels", greenLEDPixels)
+    cv.imshow("yellowLEDPixels", yellowLEDPixels)

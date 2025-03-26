@@ -4,7 +4,7 @@
 #ME 4999 CAPSTONE PROJECT (GROUP 20)
 #WRITTEN BY ANDREW KRITIKOS COPYRIGHT 2025
 
-#----------EXTERNAL SENSOR DATA----------#-----
+#----------EXTERNAL SENSOR DATA---------------
 sensorData = {
     "ultraSonic":[0,0,0], #ultrasonic latest readings [Left,Center,Right]
     "colorSensor":[[0,0,0], [0,0,0], [0,0,0]], # [L[RGB] (0), C[RGB] (1), R[RGB] (2)]
@@ -130,7 +130,6 @@ def interpretBumpers():
 #-----UltraSonic Sensors
 def interpretSonicSensor(directionString: str):
 
-
     global obstacleOnLeft,obstacleAhead,obstacleOnRight, obstaclePresent
 
     match directionString:
@@ -151,14 +150,21 @@ def interpretSonicSensor(directionString: str):
             if (sensorData["ultraSonic"][2] <= _ultSonicThreshObstacle):
                 obstacleOnRight =  True
 
-            obstaclePresent = obstacleOnLeft or obstacleAhead or obstacleOnRight
+    obstaclePresent = obstacleOnLeft or obstacleAhead or obstacleOnRight
+#----------MISC FUNCTIONS
 
-def interpretCameraColors():
-    global 
-    if ()
-def interpretCameraCorners():
+def interpretCamera_Colors():
+    global turnDirection
+    if (leftLightDetected):
+        turnDirection = "left"
+    elif (rightLightDetected):
+        turnDirection = "right"
+    else:
+        turnDirection = "none"
 
- #----------MISC FUNCTIONS       
+def interpretCamera_Corners():
+    pass
+
 #----------DATA-RESET FUNCTIONS----------
 def resetTruthData(sensorString: str):
 

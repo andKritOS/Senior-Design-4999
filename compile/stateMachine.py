@@ -85,22 +85,22 @@ stateNames = {
         (None),
         (None)),
     "state_StopLine": (
-        (trans_checkEmergency,trans_intersectionFound,trans_returnSafeStop),
+        (trans_checkEmergency,trans_intersectionFound),
         ("cameraLines","cameraCorners","bumper","ultrasonic"),
         (None),
         (None)), 
     "state_IdentifyIntersection": (
-        (trans_checkEmergency,trans_foundLeft90Turn,trans_foundDirectionalDevice,trans_foundYieldLeft,trans_foundStraightThrough, trans_returnSafeStop),
+        (trans_checkEmergency,trans_foundLeft90Turn,trans_foundDirectionalDevice,trans_foundYieldLeft,trans_foundStraightThrough),
         ("cameraLines", "cameraCorners","bumper","cameraColors","ultrasonic"),
         (None),
         (None)),
     "state_YieldtoLeft": (
-        (trans_checkEmergency,trans_yieldLeftThenForeward,trans_yieldLefttoTurnRight,trans_returnSafeStop),
+        (trans_checkEmergency,trans_yieldLeftThenForeward,trans_yieldLefttoTurnRight),
         ("cameraLines","cameraCorners","bumper","ultrasonic"),
         (None),
         (None)),
     "state_DetermineLight": (
-        (trans_checkEmergency,trans_lightTypeDetermined,trans_returnSafeStop),
+        (trans_checkEmergency,trans_lightTypeDetermined),
         ("cameraLines","cameraCorners","bumper","cameraColors","ultrasonic"),
         (None),
         (None)),
@@ -125,6 +125,7 @@ def createDelay(customTime):
     global endTime,isDelayOver,startTime
     isDelayOver = False
 
+    print("New delay has begun for stateMachine")
     startTime = time.monotonic_ns()
     if customTime is not None:
         endTime = time.monotonic_ns() + customTime
@@ -136,6 +137,7 @@ def checkDelay():
     currentTime = time.monotonic()
 
     if (currentTime >= endTime):
+        print ("State machine delay is now over!")
         isDelayOver = True
         endTime = None
     else:
@@ -183,8 +185,10 @@ def fetchSensorData():
                 pass
             case "cameraCorners":
                 cam.detectStopLines()
+                sensorData.interpretCamera_Corners()
             case "cameraColors":
                 cam.detectLEDS()
+                sensorData.interpretCamera_Colors()
             case None:
                 pass
             case _:
@@ -209,6 +213,7 @@ def fetchSensorData():
     turnDirection = sensorData.turnDirection #String direction for which way to turn
 
 def checkForChangeStates():
+    global stateIsTransitioning
 
     for i in stateNames[currentState][0]:
         if (i[0] == True):
@@ -238,9 +243,24 @@ def state_FollowingLine():
     createDelay()
     sensorData.cameraLineTrackingEnabled = True
     gpio.resetGimbal()
+    print("Line following will now start...")
 
     while(not stateIsTransitioning):
-        gpio.updateMotion('drive',)
+        checkDelay()
+        fetchSensorData()
+        checkForChangeStates()
+
+        gpio.calculateBiasPD()
+        gpio.updateMotion("pd")
+
+def state_StopLine():
+    global involvedInIntersection
+    involvedInIntersection = True
+    createDelay(1000000000)
+    gpio.halt()
+    print("STOP LINE HAS BEEN FOUND")
+
+    while (not stateIsTransitioning):
         checkDelay()
         fetchSensorData()
         checkForChangeStates()
@@ -249,17 +269,7 @@ def state_IdentifyIntersection():
     global involvedInIntersection
     involvedInIntersection = True
     createDelay(100)
-
-    while (not stateIsTransitioning):
-        checkDelay()
-        fetchSensorData()
-        checkForChangeStates()
-
-def state_StopLine():
-    global involvedInIntersection
-    involvedInIntersection = True
-    createDelay(1000000000)
-    gpio.halt()
+    print("Attempting to identify intersection...")
 
     while (not stateIsTransitioning):
         checkDelay()
@@ -270,6 +280,7 @@ def state_YieldtoLeft():
     global involvedInIntersection
     involvedInIntersection = True
     createDelay(1000000000)
+    print("Currently yielding to the left...")
 
     while (not stateIsTransitioning):
         checkDelay()
@@ -280,6 +291,7 @@ def state_DetermineLight():
     global involvedInIntersection
     involvedInIntersection = True
     createDelay(1000000000)
+    print("Attempting to determine traffic light...")
 
     while (not stateIsTransitioning):
         checkDelay()
@@ -292,8 +304,9 @@ def state_ExecuteTurn():
     gpio.halt()
     gpio.moveIncremental('f',0.2)
     createDelay()
+    print("Now attempting turn procedure...")
 
-    while(sensorData.sensorData["colorSens"][]): #move up to intersection phase
+    while(sensorData.): #move up to intersection phase
         fetchSensorData()
         gpio.moveIncremental('f',0.01)
     while(): #rotation phase
@@ -312,10 +325,8 @@ def state_ExecuteTurn():
 def state_Emergency():
     gpio.fntRed.on() #red LED on
     gpio.fntGreen.off() #green LED off
-    gpio.emergencyStop() #emergency stop motors
-    print("EMERGENCY STOP BUMPER WAS ACTIVATED, CONTROL TERMINATED!")
-    while(1): #forces FSM to stop in infinite loop
-        pass
+    print("BUMPER WAS ACTIVATED, CONTROL TERMINATED!")
+    gpio.emergencyStop() #emergency stop motors <- ENTERS INFINITE LOOP
 
 #----------PRIMARY CONTROL-FLOW FUNCTIONS----------
 
