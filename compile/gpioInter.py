@@ -65,17 +65,22 @@ pinAsgn = {
     "backLeftPWM": (13,1,1),  # controller 2, MotorB, ENA_1
     "backRightPWM": (21,1,1),  # controller 2, MotorB, ENB_1
     "cameraGimbalServo": (9,1,0),  # independent servo (SET UP PIN TO USE SOFTWARE PWM, ALL HARDWARE USED)
+    #---------------------BUMPERS-----------------------
+    "leftBumper": (24,1,0), # 
+    "centerBumper": (10,1,0), #
+    "rightBumper": (25,1,0), #
     #---------------------LEDS-----------------------
     "frontRGB_Red": (4,1,0), # 
     "frontRGB_Green": (17,1,0), #
     #------------------COLOR_SENSOR------------------
     #declares I2C communication
-    "I2CReset": (10,0,0),
+    #"I2CReset": (10,0,0),
     "I2C_SDA": (22,1,0),
     "I2C_SCL": (24,0,0),
     #------------------ULTRASONIC--------------------
-    "ultraTrig": (26,1,0), #ultrasonic trigger pin
-    "ultraEcho": (16,0,0) #ultrasonic feedback pin
+    "ultraTrig": (14,1,0), #ultrasonic trigger pin
+    "ultraEcho": (15,0,0) #ultrasonic feedback pin
+    #free pins
 }
 
 #------------------------------SENSOR DECLARATIONS---------------------------------------------------
@@ -261,10 +266,12 @@ def updateMotion(mode,speedPrcnt):
             distanceMeters = 0
 
 def moveForDist(distanceMeters):
+    # possibly look for monotonic approach if doesn't work?
+    distanceMoved = 0
     while(distanceMoved < distanceMeters):
         #d = v * t
-        time.sleep(_MotorIncIntervalSeconds) #delays time in seconds
         distanceMoved += ((_motorMaxSpeed * time.speedPrcnt)) * (_MotorIncIntervalSeconds)
+        time.sleep(_MotorIncIntervalSeconds) #delays time in seconds
 
 def resetGimbal():
     camServo.value = _servoCalibrationAngle

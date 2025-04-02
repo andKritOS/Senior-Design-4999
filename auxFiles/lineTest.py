@@ -32,7 +32,7 @@ cameraChannelCnt = 3
 #HSV color definitions
 
 hsvColors = {
-"blueLo" : np.array([70, 90, 70]),
+"blueLo" : np.array([30, 130, 115]),
 "blueHi" : np.array([115, 255, 255]),
 "yellowHi" : np.array([30, 118, 255]),
 "greenLo" : np.array([38, 28, 173]),

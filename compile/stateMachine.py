@@ -299,14 +299,18 @@ def state_DetermineLight():
         checkForChangeStates()
 
 def state_ExecuteTurn():
+
     global involvedInIntersection
     involvedInIntersection = True
     gpio.halt()
-    gpio.moveIncremental('f',0.2)
-    createDelay()
+
+    gpio.moveIncremental('f',0.05) #to get past the current stop lone
+    createDelay() 
     print("Now attempting turn procedure...")
 
-    while(sensorData.): #move up to intersection phase
+    sensorData.stopLineDetected = False
+
+    while(sensorData.stopLineDetected == False): #move up to intersection phase
         fetchSensorData()
         gpio.moveIncremental('f',0.01)
     while(): #rotation phase

@@ -1,8 +1,11 @@
 import cv2 as cv
+import picam
 import sensorData
 import numpy as np
 import string
 from colorama import Fore, Back, Style, init
+
+#PLEASE ADD PICAM ADJUSTMENTS
 
 init() #initializes colorama for colored terminal text
 #----------------------PRIVATE DEFINED VARIABLES--------------------------------

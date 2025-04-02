@@ -5,6 +5,7 @@
 #WRITTEN BY ANDREW KRITIKOS COPYRIGHT 2025
 
 #----------EXTERNAL SENSOR DATA---------------
+
 sensorData = {
     "ultraSonic":[0,0,0], #ultrasonic latest readings [Left,Center,Right]
     "colorSensor":[[0,0,0], [0,0,0], [0,0,0]], # [L[RGB] (0), C[RGB] (1), R[RGB] (2)]
@@ -92,6 +93,7 @@ def writeSonicSensorData(sensorString: str, data):
             sensorData.sensorData["ultraSonic"][2] = round(data * 100)
 
 #----------FILE-VISIBLE INTERPRET FUNCTIONS----------
+
 #-----Color Sensors
 def interpretColorSensors(sensorNum):
 
@@ -120,6 +122,7 @@ def interpretColorSensors(sensorNum):
     sharpTurnDetected = (not blueOnLeft and not blueOnCenter) or (not blueOnRight and not blueOnCenter)
     turnLeftColorSensor = blueOnLeft
     turnRightColorSensor = blueOnRight
+
 #-----Bumper Sensors
 def interpretBumpers():
     
@@ -127,6 +130,7 @@ def interpretBumpers():
 
     if any(sensorData["bumpers"]):
         bumperEngaged = True
+
 #-----UltraSonic Sensors
 def interpretSonicSensor(directionString: str):
 
@@ -151,6 +155,7 @@ def interpretSonicSensor(directionString: str):
                 obstacleOnRight =  True
 
     obstaclePresent = obstacleOnLeft or obstacleAhead or obstacleOnRight
+
 #----------MISC FUNCTIONS
 
 def interpretCamera_Colors():
